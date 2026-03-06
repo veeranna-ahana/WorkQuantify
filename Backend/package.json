@@ -1,0 +1,29 @@
+{
+    "name": "quantify",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/server.js",
+    "scripts": {
+        "start": "nodemon src/server.js",
+        "pm2-start": "pm2 start src/server.js --name orders",
+        "pm2-stop": "pm2 stop orders",
+        "pm2-restart": "pm2 restart orders",
+        "build": "pkg src/server.js --compress Brotli --output ./dist/Backend --targets win --public",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "BV",
+    "license": "ISC",
+    "devDependencies": {
+        "nodemon": "^3.1.11"
+    },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "bcryptjs": "^3.0.3",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "dotenv": "^17.2.4",
+        "express": "^5.2.1",
+        "jsonwebtoken": "^9.0.3",
+        "mysql2": "^3.16.3"
+    }
+}
