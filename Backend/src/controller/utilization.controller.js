@@ -1,7 +1,9 @@
 const { query } = require("../config/db");
+const { createNotification } = require("./notification.controller");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EMP: Get my assignments with completed + pending
+// Only APPROVED progress rows count toward completed
 // GET /api/utilization/my-assignments?userId=
 // ─────────────────────────────────────────────────────────────────────────────
 const getMyAssignments = async (req, res, next) => {
@@ -11,17 +13,25 @@ const getMyAssignments = async (req, res, next) => {
 
     const sql = `
       SELECT
-        a.id                                        AS assignment_id,
+        a.id                                                          AS assignment_id,
         a.project_id,
         p.project_name,
         a.role,
         a.task_name,
         a.units_assigned,
-        COALESCE(SUM(ap.units_completed), 0)        AS units_completed,
-        GREATEST(a.units_assigned - COALESCE(SUM(ap.units_completed), 0), 0) AS units_pending
+        COALESCE(SUM(CASE WHEN ap.status = 'APPROVED' THEN ap.units_completed ELSE 0 END), 0)
+                                                                      AS units_completed,
+        GREATEST(
+          a.units_assigned
+          - COALESCE(SUM(CASE WHEN ap.status = 'APPROVED' THEN ap.units_completed ELSE 0 END), 0),
+          0
+        )                                                             AS units_pending,
+        -- pending-approval units (logged but not yet reviewed)
+        COALESCE(SUM(CASE WHEN ap.status = 'PENDING' THEN ap.units_completed ELSE 0 END), 0)
+                                                                      AS units_awaiting
       FROM assignments a
-      LEFT JOIN projects p           ON a.project_id   = p.id
-      LEFT JOIN assignment_progress ap ON a.id          = ap.assignment_id
+      LEFT JOIN projects p              ON a.project_id = p.id
+      LEFT JOIN assignment_progress ap  ON a.id         = ap.assignment_id
       WHERE a.user_id = ?
       GROUP BY a.id, a.project_id, p.project_name, a.role, a.task_name, a.units_assigned
       ORDER BY p.project_name, a.role
@@ -36,6 +46,7 @@ const getMyAssignments = async (req, res, next) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EMP: Log progress on an assignment
+// Inserts with status = 'PENDING', notifies all admins
 // POST /api/utilization/log-progress
 // Body: { assignment_id, user_id, date, units_completed, remarks }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,11 +58,12 @@ const logProgress = async (req, res, next) => {
       return res.status(400).json({ message: "assignment_id, user_id and date are required" });
     }
 
-    // Guard: don't allow logging more than what's pending
+    // Guard: don't allow logging more than what's pending (APPROVED only)
     const pendingRows = await query(
       `SELECT
          a.units_assigned,
-         COALESCE(SUM(ap.units_completed), 0) AS already_done
+         COALESCE(SUM(CASE WHEN ap.status = 'APPROVED' THEN ap.units_completed ELSE 0 END), 0) AS already_done,
+         COALESCE(SUM(CASE WHEN ap.status = 'PENDING'  THEN ap.units_completed ELSE 0 END), 0) AS awaiting
        FROM assignments a
        LEFT JOIN assignment_progress ap ON a.id = ap.assignment_id
        WHERE a.id = ?
@@ -63,31 +75,188 @@ const logProgress = async (req, res, next) => {
       return res.status(404).json({ message: "Assignment not found" });
     }
 
-    const { units_assigned, already_done } = pendingRows[0];
-    const pending = units_assigned - already_done;
+    const { units_assigned, already_done, awaiting } = pendingRows[0];
+    const effective_pending = units_assigned - already_done - awaiting;
 
-    if (units_completed > pending) {
+    if (effective_pending <= 0) {
       return res.status(400).json({
-        message: `Cannot log ${units_completed} units. Only ${pending} units pending.`
+        message: `No pending units available. You have ${awaiting} unit(s) awaiting approval.`
       });
     }
 
+    if (units_completed > effective_pending) {
+      return res.status(400).json({
+        message: `Cannot log ${units_completed} units. Only ${effective_pending} units available to log.`
+      });
+    }
+
+    // Insert with PENDING status
     const result = await query(
-      `INSERT INTO assignment_progress (assignment_id, user_id, date, units_completed, remarks)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO assignment_progress (assignment_id, user_id, date, units_completed, remarks, status)
+       VALUES (?, ?, ?, ?, ?, 'PENDING')`,
       [assignment_id, user_id, date, units_completed || 0, remarks || null]
     );
 
-    return res.status(201).json({ id: result.insertId, message: "Progress logged" });
+    // Fetch assignment context for notifications
+    const ctxRows = await query(
+      `SELECT a.role, a.task_name, p.project_name, u.name AS emp_name
+       FROM assignments a
+       LEFT JOIN projects p ON a.project_id = p.id
+       LEFT JOIN users u    ON a.user_id    = u.id
+       WHERE a.id = ?`,
+      [assignment_id]
+    );
+    const ctx = ctxRows[0];
+
+    // Notify ALL admins
+    const admins = await query(`SELECT id FROM users WHERE role = 'ADMIN'`);
+    for (const admin of admins) {
+      await createNotification({
+        user_id: admin.id,
+        type:    'progress_pending',
+        title:   `Progress update awaiting approval`,
+        message: `${ctx.emp_name} logged ${units_completed} unit(s) of "${ctx.task_name}" (${ctx.role}) on "${ctx.project_name}". Awaiting your approval.`,
+      });
+    }
+
+    return res.status(201).json({
+      id:      result.insertId,
+      status:  'PENDING',
+      message: "Progress logged and sent for approval",
+    });
   } catch (err) {
     return next(err);
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Overall user utilization
-// GET /api/utilization/overall
-// Returns per-user: total assigned, completed, pending, utilization %
+// ADMIN: Get all pending approval items
+// GET /api/utilization/pending-approvals
+// ─────────────────────────────────────────────────────────────────────────────
+const getPendingApprovals = async (req, res, next) => {
+  try {
+    const rows = await query(
+      `SELECT
+         ap.id                 AS progress_id,
+         ap.assignment_id,
+         ap.date,
+         ap.units_completed,
+         ap.remarks,
+         ap.status,
+         ap.rejection_reason,
+         u.id                  AS user_id,
+         u.name                AS user_name,
+         a.role,
+         a.task_name,
+         a.units_assigned,
+         p.id                  AS project_id,
+         p.project_name
+       FROM assignment_progress ap
+       LEFT JOIN assignments a ON ap.assignment_id = a.id
+       LEFT JOIN users u       ON ap.user_id       = u.id
+       LEFT JOIN projects p    ON a.project_id     = p.id
+       WHERE ap.status = 'PENDING'
+       ORDER BY ap.date ASC`
+    );
+    return res.status(200).json(rows);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Approve a progress log
+// PUT /api/utilization/approve/:progressId
+// ─────────────────────────────────────────────────────────────────────────────
+const approveProgress = async (req, res, next) => {
+  try {
+    const { progressId } = req.params;
+
+    // Fetch context before updating (for notification)
+    const rows = await query(
+      `SELECT ap.*, u.name AS emp_name, a.task_name, a.role, p.project_name
+       FROM assignment_progress ap
+       LEFT JOIN assignments a ON ap.assignment_id = a.id
+       LEFT JOIN users u       ON ap.user_id       = u.id
+       LEFT JOIN projects p    ON a.project_id     = p.id
+       WHERE ap.id = ?`,
+      [progressId]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ message: "Progress log not found" });
+    const ap = rows[0];
+
+    if (ap.status !== 'PENDING') {
+      return res.status(400).json({ message: `Cannot approve — current status is ${ap.status}` });
+    }
+
+    await query(
+      `UPDATE assignment_progress SET status = 'APPROVED', rejection_reason = NULL WHERE id = ?`,
+      [progressId]
+    );
+
+    // Notify the employee
+    await createNotification({
+      user_id: ap.user_id,
+      type:    'progress_approved',
+      title:   `Progress approved ✓`,
+      message: `Your log of ${ap.units_completed} unit(s) for "${ap.task_name}" (${ap.role}) on "${ap.project_name}" has been approved.`,
+    });
+
+    return res.status(200).json({ message: "Approved" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Reject a progress log
+// PUT /api/utilization/reject/:progressId
+// Body: { reason }
+// ─────────────────────────────────────────────────────────────────────────────
+const rejectProgress = async (req, res, next) => {
+  try {
+    const { progressId } = req.params;
+    const { reason }     = req.body;
+
+    const rows = await query(
+      `SELECT ap.*, u.name AS emp_name, a.task_name, a.role, p.project_name
+       FROM assignment_progress ap
+       LEFT JOIN assignments a ON ap.assignment_id = a.id
+       LEFT JOIN users u       ON ap.user_id       = u.id
+       LEFT JOIN projects p    ON a.project_id     = p.id
+       WHERE ap.id = ?`,
+      [progressId]
+    );
+
+    if (rows.length === 0) return res.status(404).json({ message: "Progress log not found" });
+    const ap = rows[0];
+
+    if (ap.status !== 'PENDING') {
+      return res.status(400).json({ message: `Cannot reject — current status is ${ap.status}` });
+    }
+
+    await query(
+      `UPDATE assignment_progress SET status = 'REJECTED', rejection_reason = ? WHERE id = ?`,
+      [reason || null, progressId]
+    );
+
+    // Notify the employee
+    await createNotification({
+      user_id: ap.user_id,
+      type:    'progress_rejected',
+      title:   `Progress update rejected`,
+      message: `Your log of ${ap.units_completed} unit(s) for "${ap.task_name}" on "${ap.project_name}" was rejected.${reason ? ` Reason: ${reason}` : ""}`,
+    });
+
+    return res.status(200).json({ message: "Rejected" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: Overall user utilization (APPROVED only)
 // ─────────────────────────────────────────────────────────────────────────────
 const getOverallUtilization = async (req, res, next) => {
   try {
@@ -113,13 +282,13 @@ const getOverallUtilization = async (req, res, next) => {
       LEFT JOIN (
         SELECT assignment_id, SUM(units_completed) AS units_completed
         FROM assignment_progress
+        WHERE status = 'APPROVED'
         GROUP BY assignment_id
       ) ap_totals ON a.id = ap_totals.assignment_id
       WHERE u.role != 'ADMIN'
       GROUP BY u.id, u.name, u.role, u.daily_capacity
       ORDER BY utilization_pct DESC
     `;
-
     const rows = await query(sql);
     return res.status(200).json(rows);
   } catch (err) {
@@ -128,8 +297,7 @@ const getOverallUtilization = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Project-wise user utilization
-// GET /api/utilization/by-project?projectId=   (optional filter)
+// ADMIN: Project-wise utilization (APPROVED only)
 // ─────────────────────────────────────────────────────────────────────────────
 const getProjectUtilization = async (req, res, next) => {
   try {
@@ -158,6 +326,7 @@ const getProjectUtilization = async (req, res, next) => {
       LEFT JOIN (
         SELECT assignment_id, SUM(units_completed) AS units_completed
         FROM assignment_progress
+        WHERE status = 'APPROVED'
         GROUP BY assignment_id
       ) ap_totals ON a.id = ap_totals.assignment_id
     `;
@@ -167,7 +336,6 @@ const getProjectUtilization = async (req, res, next) => {
       sql += ` WHERE a.project_id = ?`;
       params.push(projectId);
     }
-
     sql += ` ORDER BY p.project_name, u.name, a.role`;
 
     const rows = await query(sql, params);
@@ -178,9 +346,7 @@ const getProjectUtilization = async (req, res, next) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ADMIN: Project health cards
-// GET /api/utilization/project-health
-// Returns per-project: total_assigned, completed, pending, growth %, load
+// ADMIN: Project health cards (APPROVED only)
 // ─────────────────────────────────────────────────────────────────────────────
 const getProjectHealth = async (req, res, next) => {
   try {
@@ -191,23 +357,17 @@ const getProjectHealth = async (req, res, next) => {
         p.status,
         p.start_date,
         p.end_date,
-        -- total_load = SUM of all planned_units in project_task_loads
         COALESCE(ptl_totals.total_load, 0)                      AS total_load,
-        -- total_assigned = SUM of units_assigned across all assignments
         COALESCE(a_totals.total_assigned, 0)                    AS total_assigned,
-        -- total_completed = SUM of all logged progress
         COALESCE(a_totals.total_completed, 0)                   AS total_completed,
-        -- total_pending = assigned - completed (never negative)
         GREATEST(
           COALESCE(a_totals.total_assigned,  0)
           - COALESCE(a_totals.total_completed, 0), 0
         )                                                       AS total_pending,
-        -- unassigned = load not yet given to anyone
         GREATEST(
           COALESCE(ptl_totals.total_load,    0)
           - COALESCE(a_totals.total_assigned, 0), 0
         )                                                       AS total_unassigned,
-        -- completion_pct based on assigned work done
         CASE
           WHEN COALESCE(a_totals.total_assigned, 0) = 0 THEN 0
           ELSE ROUND(
@@ -216,15 +376,11 @@ const getProjectHealth = async (req, res, next) => {
           )
         END                                                     AS completion_pct
       FROM projects p
-
-      -- Subquery 1: total planned load from project_task_loads
       LEFT JOIN (
         SELECT project_id, SUM(planned_units) AS total_load
         FROM project_task_loads
         GROUP BY project_id
       ) ptl_totals ON ptl_totals.project_id = p.id
-
-      -- Subquery 2: total assigned + completed per project
       LEFT JOIN (
         SELECT
           a.project_id,
@@ -234,11 +390,11 @@ const getProjectHealth = async (req, res, next) => {
         LEFT JOIN (
           SELECT assignment_id, SUM(units_completed) AS units_completed
           FROM assignment_progress
+          WHERE status = 'APPROVED'
           GROUP BY assignment_id
         ) ap_sub ON ap_sub.assignment_id = a.id
         GROUP BY a.project_id
       ) a_totals ON a_totals.project_id = p.id
-
       ORDER BY p.project_name
     `;
 
@@ -252,6 +408,9 @@ const getProjectHealth = async (req, res, next) => {
 module.exports = {
   getMyAssignments,
   logProgress,
+  getPendingApprovals,
+  approveProgress,
+  rejectProgress,
   getOverallUtilization,
   getProjectUtilization,
   getProjectHealth,

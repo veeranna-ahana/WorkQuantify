@@ -29,6 +29,9 @@ CREATE TABLE `projects` (
   `start_date` date DEFAULT NULL,
   `end_date` date DEFAULT NULL,
   `status` varchar(50) DEFAULT NULL,
+  `current_stage` varchar(50) DEFAULT 'req',
+  `risk_level` enum('low','medium','high') DEFAULT 'medium',
+  `project_manager` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -40,7 +43,7 @@ CREATE TABLE `projects` (
 
 LOCK TABLES `projects` WRITE;
 /*!40000 ALTER TABLE `projects` DISABLE KEYS */;
-INSERT INTO `projects` VALUES (1,'FMS','Default Client',NULL,NULL,'ACTIVE'),(2,'ERP','Default Client',NULL,NULL,'ACTIVE'),(8,'Ahana Pilot(PMS, WDS, Checklist) - UI and Backend Full reavamp','Ahana','2026-01-01','2026-06-30','Active'),(9,'API Integration','Client B','2026-01-01','2026-05-31','Active');
+INSERT INTO `projects` VALUES (1,'Alpha','Default Client',NULL,NULL,'ACTIVE','req','medium',NULL),(2,'ERP','Default Client',NULL,NULL,'ACTIVE','req','medium',NULL),(9,'PMS Portal','Client B','2026-01-01','2026-05-31','Active','req','medium',NULL);
 /*!40000 ALTER TABLE `projects` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -53,4 +56,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-05 15:45:54
+-- Dump completed on 2026-06-08 13:11:31

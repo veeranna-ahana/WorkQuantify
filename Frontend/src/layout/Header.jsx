@@ -103,7 +103,7 @@ const Header = () => {
     <header style={S.header}>
       {/* Left: page context */}
       <div style={S.left}>
-        <span style={S.appName}>WorkQuantify</span>
+        {/* <span style={S.appName}>WorkQuantify</span> */}
         <span style={S.roleTag}>{role}</span>
       </div>
 

@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 
-// ── Inline SVG icons (no extra dependency) ────────────────────────────────────
+// ── Inline SVG icons ──────────────────────────────────────────────────────────
 const Icon = ({ d, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -17,28 +17,27 @@ const Icons = {
   utilization: "M18 20V10 M12 20V4 M6 20v-6",
   dailyUpdate: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
   myWork:      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  approvals:   "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",  // ← NEW
   logout:      "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   chevronLeft: "M15 18l-6-6 6-6",
   chevronRight:"M9 18l6-6-6-6",
 };
 
 const ADMIN_LINKS = [
-  // { to: "/dashboard",   label: "Dashboard",   icon: "dashboard" },
-  // { to: "/projects",    label: "Projects",    icon: "projects" },
   { to: "/assignments", label: "Assignments", icon: "assignments" },
+  { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW
   { to: "/utilization", label: "Utilization", icon: "utilization" },
 ];
 
 const EMP_LINKS = [
-  // { to: "/daily-update", label: "Daily Updates", icon: "dailyUpdate" },
-  { to: "/my-work",      label: "My Work",       icon: "myWork" },
+  { to: "/my-work", label: "My Work", icon: "myWork" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Sidebar = () => {
-  const navigate   = useNavigate();
-  const role       = localStorage.getItem("role");
-  const userName   = localStorage.getItem("userName") || "User";
+  const navigate    = useNavigate();
+  const role        = localStorage.getItem("role");
+  const userName    = localStorage.getItem("userName") || "User";
   const [collapsed, setCollapsed] = useState(false);
 
   const links = role === "ADMIN" ? ADMIN_LINKS : EMP_LINKS;
@@ -59,7 +58,6 @@ const Sidebar = () => {
         {!collapsed && (
           <div>
             <div style={S.brandName}>QuantifyDesk</div>
-            {/* <div style={S.brandRole}>{role}</div> */}
           </div>
         )}
         {collapsed && <div style={S.brandIcon}>QD</div>}
@@ -105,7 +103,7 @@ const Sidebar = () => {
           style={{
             ...S.logoutBtn,
             justifyContent: collapsed ? "center" : "flex-start",
-            padding: collapsed ? "10px 0" : "10px 14px"
+            padding: collapsed ? "10px 0" : "10px 14px",
           }}
           title="Sign Out"
         >
@@ -120,141 +118,58 @@ const Sidebar = () => {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
   sidebar: {
-    background: "#1e272e",
-    color: "white",
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-    position: "sticky",
-    top: 0,
-    transition: "width 0.22s ease",
-    overflow: "hidden",
-    flexShrink: 0,
+    background: "#1e272e", color: "white",
+    display: "flex", flexDirection: "column",
+    height: "100vh", position: "sticky", top: 0,
+    transition: "width 0.22s ease", overflow: "hidden", flexShrink: 0,
   },
   brand: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
+    display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "18px 14px 14px",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
-    minHeight: "64px",
+    borderBottom: "1px solid rgba(255,255,255,0.07)", minHeight: "64px",
   },
-  brandName: {
-    fontSize: "15px",
-    fontWeight: "800",
-    color: "white",
-    letterSpacing: "-0.3px",
-    whiteSpace: "nowrap",
-  },
-  brandRole: {
-    fontSize: "10px",
-    color: "#e74c3c",
-    fontWeight: "700",
-    marginTop: "2px",
-    letterSpacing: "1px",
-    textTransform: "uppercase",
-  },
-  brandIcon: {
-    fontSize: "13px",
-    fontWeight: "800",
-    color: "white",
-    margin: "0 auto",
-  },
-  collapseBtn: {
-    background: "rgba(255,255,255,0.08)",
-    border: "none",
-    color: "#bbb",
-    cursor: "pointer",
-    borderRadius: "6px",
-    padding: "5px 7px",
-    display: "flex",
-    alignItems: "center",
-    flexShrink: 0,
-    transition: "background 0.15s",
+  brandName:  { fontSize: "15px", fontWeight: "800", color: "white", letterSpacing: "-0.3px", whiteSpace: "nowrap" },
+  brandIcon:  { fontSize: "13px", fontWeight: "800", color: "white", margin: "0 auto" },
+  collapseBtn:{
+    background: "rgba(255,255,255,0.08)", border: "none", color: "#bbb",
+    cursor: "pointer", borderRadius: "6px", padding: "5px 7px",
+    display: "flex", alignItems: "center", flexShrink: 0, transition: "background 0.15s",
   },
   nav: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    padding: "12px 8px",
-    overflowY: "auto",
+    flex: 1, display: "flex", flexDirection: "column",
+    gap: "2px", padding: "12px 8px", overflowY: "auto",
   },
   link: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    color: "rgba(255,255,255,0.6)",
-    textDecoration: "none",
-    borderRadius: "7px",
-    fontSize: "13.5px",
-    fontWeight: "500",
-    transition: "background 0.15s, color 0.15s",
-    whiteSpace: "nowrap",
+    display: "flex", alignItems: "center", gap: "12px",
+    color: "rgba(255,255,255,0.6)", textDecoration: "none",
+    borderRadius: "7px", fontSize: "13.5px", fontWeight: "500",
+    transition: "background 0.15s, color 0.15s", whiteSpace: "nowrap",
   },
-  linkActive: {
-    background: "rgba(231,76,60,0.18)",
-    color: "#ff6b6b",
-    fontWeight: "700",
-  },
-  linkLabel: {
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
+  linkActive: { background: "rgba(231,76,60,0.18)", color: "#ff6b6b", fontWeight: "700" },
+  linkLabel:  { overflow: "hidden", textOverflow: "ellipsis" },
   footer: {
     padding: "10px 8px 14px",
     borderTop: "1px solid rgba(255,255,255,0.07)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
+    display: "flex", flexDirection: "column", gap: "6px",
   },
   userChip: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "8px 10px",
-    borderRadius: "7px",
-    background: "rgba(255,255,255,0.05)",
-    marginBottom: "4px",
+    display: "flex", alignItems: "center", gap: "10px",
+    padding: "8px 10px", borderRadius: "7px",
+    background: "rgba(255,255,255,0.05)", marginBottom: "4px",
   },
   avatar: {
-    width: "30px",
-    height: "30px",
-    borderRadius: "50%",
-    background: "#e74c3c",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "13px",
-    fontWeight: "800",
-    flexShrink: 0,
+    width: "30px", height: "30px", borderRadius: "50%",
+    background: "#e74c3c", display: "flex", alignItems: "center",
+    justifyContent: "center", fontSize: "13px", fontWeight: "800", flexShrink: 0,
   },
-  userInfo: { overflow: "hidden" },
-  userName: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "white",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-  userRole: {
-    fontSize: "10px",
-    color: "#aaa",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-  },
+  userInfo:  { overflow: "hidden" },
+  userName:  { fontSize: "13px", fontWeight: "600", color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  userRole:  { fontSize: "10px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" },
   logoutBtn: {
-    display: "flex",
-    alignItems: "center",
-    width: "100%",
-    background: "transparent",
-    border: "none",
-    color: "rgba(255,255,255,0.5)",
-    cursor: "pointer",
-    borderRadius: "7px",
-    fontSize: "13px",
-    fontWeight: "500",
+    display: "flex", alignItems: "center", width: "100%",
+    background: "transparent", border: "none",
+    color: "rgba(255,255,255,0.5)", cursor: "pointer",
+    borderRadius: "7px", fontSize: "13px", fontWeight: "500",
     transition: "background 0.15s, color 0.15s",
   },
 };

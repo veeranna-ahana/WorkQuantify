@@ -16,35 +16,36 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `assignments`
+-- Table structure for table `project_blockers`
 --
 
-DROP TABLE IF EXISTS `assignments`;
+DROP TABLE IF EXISTS `project_blockers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `assignments` (
+CREATE TABLE `project_blockers` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `project_id` bigint unsigned NOT NULL,
-  `user_id` bigint unsigned NOT NULL,
-  `role` varchar(100) NOT NULL,
-  `task_name` varchar(255) NOT NULL,
-  `units_assigned` int NOT NULL DEFAULT '0',
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+  `owner` varchar(100) DEFAULT NULL,
+  `status` enum('open','resolved') NOT NULL DEFAULT 'open',
+  `raised_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `resolved_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `project_id` (`project_id`),
-  KEY `user_id` (`user_id`),
-  CONSTRAINT `assignments_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `assignments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `project_blockers_ibfk_1` (`project_id`),
+  CONSTRAINT `project_blockers_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `assignments`
+-- Dumping data for table `project_blockers`
 --
 
-LOCK TABLES `assignments` WRITE;
-/*!40000 ALTER TABLE `assignments` DISABLE KEYS */;
-INSERT INTO `assignments` VALUES (1,1,2,'FE Dev','FEDev-UI Implementation',50),(2,1,2,'BE Dev','BEDev-API Implementation',50),(3,1,2,'BE Dev','BEDev-API Testing',10),(17,2,39,'BE Dev','BEDev-DB Design',10),(18,2,36,'BE Dev','BEDev-DB Design',10),(20,2,39,'BE Dev','BEDev-API Impl',50),(21,2,39,'BA','BA-BRD',1),(22,2,38,'BA','BA-TDD',1),(23,2,39,'BE Dev','BEDev-API Testing',100),(24,2,38,'BE Dev','BEDev-API Testing',100),(25,2,38,'BA','BA-Requirements Sign Off',1),(26,9,32,'BA','BA-BRD',4),(27,2,42,'BE Dev','BEDev-Documentation',10),(28,1,39,'BE Dev','BEDev-API Impl',100),(29,1,2,'BE Dev','BEDev-API Impl',100),(30,9,43,'BA','BA-Requirements Sign Off',1),(31,9,2,'BA','BA-TDD',5);
-/*!40000 ALTER TABLE `assignments` ENABLE KEYS */;
+LOCK TABLES `project_blockers` WRITE;
+/*!40000 ALTER TABLE `project_blockers` DISABLE KEYS */;
+/*!40000 ALTER TABLE `project_blockers` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

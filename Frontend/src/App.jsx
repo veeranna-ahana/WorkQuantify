@@ -10,8 +10,9 @@ import Projects from './pages/Projects';
 import Tasks from './pages/Tasks';
 import DailyUpdates from './pages/DailyUpdate';
 import AssignmentScreen from './pages/Assignment';
-import MyWork from './pages/MyWork';                             // ← NEW
-import UtilizationDashboard from './pages/UtilizationDashboard'; // ← NEW
+import MyWork from './pages/MyWork';
+import UtilizationDashboard from './pages/UtilizationDashboard';
+import Approvals from './pages/Approvals';                        // ← NEW
 
 function App() {
   return (
@@ -33,8 +34,9 @@ function App() {
           <Route path="tasks"        element={<Tasks />} />
           <Route path="daily-update" element={<DailyUpdates />} />
           <Route path="assignments"  element={<AssignmentScreen />} />
-          <Route path="my-work"      element={<MyWork />} />                  {/* EMP */}
-          <Route path="utilization"  element={<UtilizationDashboard />} />    {/* ADMIN */}
+          <Route path="my-work"      element={<MyWork />} />
+          <Route path="utilization"  element={<UtilizationDashboard />} />
+          <Route path="approvals"    element={<Approvals />} />   {/* ← NEW ADMIN */}
         </Route>
 
         <Route path="*" element={<Navigate to="/login" />} />

@@ -16,31 +16,33 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `tasks`
+-- Table structure for table `project_stages`
 --
 
-DROP TABLE IF EXISTS `tasks`;
+DROP TABLE IF EXISTS `project_stages`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `tasks` (
+CREATE TABLE `project_stages` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `project_id` int DEFAULT NULL,
-  `assigned_user_id` int DEFAULT NULL,
-  `task_name` varchar(150) DEFAULT NULL,
-  `planned_units` int DEFAULT NULL,
+  `project_id` bigint unsigned NOT NULL,
+  `stage_id` varchar(50) NOT NULL,
+  `stage_label` varchar(100) NOT NULL,
+  `status` enum('pending','inprogress','done','blocked') NOT NULL DEFAULT 'pending',
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `uq_project_stage` (`project_id`,`stage_id`),
+  CONSTRAINT `project_stages_ibfk_1` FOREIGN KEY (`project_id`) REFERENCES `projects` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `tasks`
+-- Dumping data for table `project_stages`
 --
 
-LOCK TABLES `tasks` WRITE;
-/*!40000 ALTER TABLE `tasks` DISABLE KEYS */;
-INSERT INTO `tasks` VALUES (1,1,2,'BRD walkthrough',5),(2,2,2,'Deployement',5),(3,2,2,'taskn2',0),(4,7,2,'UI design',0);
-/*!40000 ALTER TABLE `tasks` ENABLE KEYS */;
+LOCK TABLES `project_stages` WRITE;
+/*!40000 ALTER TABLE `project_stages` DISABLE KEYS */;
+/*!40000 ALTER TABLE `project_stages` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -52,4 +54,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-08 13:11:31
+-- Dump completed on 2026-06-08 13:11:29

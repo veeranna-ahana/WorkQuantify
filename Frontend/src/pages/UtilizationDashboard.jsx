@@ -5,6 +5,9 @@ import {
   RadialBarChart, RadialBar, Cell, PieChart, Pie
 } from "recharts";
 
+console.log(localStorage.getItem("token"));
+
+
 const BASE_URL = "http://localhost:7001";
 const getHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
@@ -19,6 +22,8 @@ const CHART_COLORS = [
 ];
 
 const UtilizationDashboard = () => {
+
+  
   const [overall, setOverall]       = useState([]);
   const [projectData, setProject]   = useState([]);
   const [health, setHealth]         = useState([]);
@@ -26,6 +31,15 @@ const UtilizationDashboard = () => {
   const [selProject, setSelProject] = useState("");
   const [tableData, setTableData]   = useState([]);
   const [loading, setLoading]       = useState(true);
+  //pagination for the table
+const [currentPage, setCurrentPage] = useState(1);
+const rowsPerPage = 10;
+
+const indexOfLast = currentPage * rowsPerPage;
+const indexOfFirst = indexOfLast - rowsPerPage;
+const currentRows = tableData.slice(indexOfFirst, indexOfLast);
+
+const totalPages = Math.ceil(tableData.length / rowsPerPage);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -96,9 +110,9 @@ const UtilizationDashboard = () => {
       {/* ── Title row + refresh icon top-right ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <h2 style={{ ...S.pageTitle, marginBottom: 0 }}>Utilization Dashboard</h2>
-        <button onClick={fetchAll} style={S.refreshBtn} title="Refresh">
+        {/* <button onClick={fetchAll} style={S.refreshBtn} title="Refresh">
           <span style={{ fontSize: 16 }}>↻</span> Refresh
-        </button>
+        </button> */}
       </div>
 
       {/* ── KPI Strip — UNCHANGED ─────────────────────────────────────── */}
@@ -114,12 +128,98 @@ const UtilizationDashboard = () => {
         />
       </div>
 
+ {/* ── Row 4: Detailed Table — UNCHANGED ────────────────────────── */}
+ <h3 style={S.sectionTitle}>Assignment Overview</h3>
+      <div style={S.tableCard}>
+        <div style={S.tableToolbar}>
+          <select
+            value={selProject}
+            onChange={(e) => setSelProject(e.target.value)}
+            style={S.select}
+          >
+            <option value="">All Projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.project_name || p.name}</option>
+            ))}
+          </select>
+          
+          <span style={{ fontSize: "13px", color: "#999" }}>{tableData.length} rows</span>
+        </div>
+
+        <div style={{  maxHeight: "420px", }}>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                {["User","Project","Role","Task","Assigned","Completed","Pending","Progress"].map(h => (
+                  <th key={h} style={S.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tableData.length === 0 ? (
+                <tr><td colSpan={8} style={{ ...S.td, textAlign: "center", color: "#bbb", padding: "30px" }}>
+                  No data available
+                </td></tr>
+              ) : (
+                // tableData.map((r, i) => {
+                  currentRows.map((r, i) => {
+                  const pct = r.units_assigned > 0
+                    ? Math.round((r.units_completed / r.units_assigned) * 100) : 0;
+                  return (
+                    <tr key={i} style={i % 2 === 0 ? {} : { background: "#fafafa" }}>
+                      <td style={S.td}><strong>{r.user_name}</strong></td>
+                      <td style={S.td}>{r.project_name}</td>
+                      <td style={S.td}><RolePill role={r.role} /></td>
+                      <td style={{ ...S.td, maxWidth: "180px", fontSize: "12px" }}>{r.task_name}</td>
+                      <td style={{ ...S.td, textAlign: "center", fontWeight: "700" }}>{r.units_assigned}</td>
+                      <td style={{ ...S.td, textAlign: "center", color: "#2ecc71", fontWeight: "700" }}>{r.units_completed}</td>
+                      <td style={{ ...S.td, textAlign: "center", color: Number(r.units_pending) > 0 ? "#e74c3c" : "#2ecc71", fontWeight: "700" }}>
+                        {r.units_pending}
+                      </td>
+                      <td style={{ ...S.td, minWidth: "120px" }}>
+                        <MiniBar pct={pct} />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination */}
+<div style={{
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "10px 0"
+}}>
+  <button
+    disabled={currentPage === 1}
+    onClick={() => setCurrentPage(prev => prev - 1)}
+    style={S.pageBtn}
+  >
+    Previous
+  </button>
+
+  <span style={{ fontSize: "13px", color: "#666" }}>
+    Page {currentPage} of {totalPages}
+  </span>
+
+  <button
+    disabled={currentPage === totalPages}
+    onClick={() => setCurrentPage(prev => prev + 1)}
+    style={S.pageBtn}
+  >
+    Next
+  </button>
+</div>
+      </div>
       {/* ── Row 1: CHANGED — horizontal scrollable bar + pie UNCHANGED ── */}
       <div style={S.chartRow}>
 
         {/* CHANGED: vertical layout (horizontal bars), scrollable */}
         <div style={{ ...S.chartCard, padding: 0, overflow: "hidden" }}>
-          <h3 style={{ ...S.chartTitle, padding: "16px 18px 8px", marginBottom: 0 }}>Overall User Utilization</h3>
+          <h3 style={{ ...S.chartTitle, padding: "16px 18px 8px", marginBottom: 0 }}>User Utilization</h3>
           <div style={{ overflowY: "auto", overflowX: "hidden", maxHeight: 340 }}>
             <ResponsiveContainer width="100%" height={Math.max(260, overallChartData.length * 36)}>
               <BarChart
@@ -188,63 +288,7 @@ const UtilizationDashboard = () => {
         ))}
       </div>
 
-      {/* ── Row 4: Detailed Table — UNCHANGED ────────────────────────── */}
-      <h3 style={S.sectionTitle}>Detailed Assignment View</h3>
-      <div style={S.tableCard}>
-        <div style={S.tableToolbar}>
-          <select
-            value={selProject}
-            onChange={(e) => setSelProject(e.target.value)}
-            style={S.select}
-          >
-            <option value="">All Projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.project_name || p.name}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: "13px", color: "#999" }}>{tableData.length} rows</span>
-        </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                {["User","Project","Role","Task","Assigned","Completed","Pending","Progress"].map(h => (
-                  <th key={h} style={S.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.length === 0 ? (
-                <tr><td colSpan={8} style={{ ...S.td, textAlign: "center", color: "#bbb", padding: "30px" }}>
-                  No data available
-                </td></tr>
-              ) : (
-                tableData.map((r, i) => {
-                  const pct = r.units_assigned > 0
-                    ? Math.round((r.units_completed / r.units_assigned) * 100) : 0;
-                  return (
-                    <tr key={i} style={i % 2 === 0 ? {} : { background: "#fafafa" }}>
-                      <td style={S.td}><strong>{r.user_name}</strong></td>
-                      <td style={S.td}>{r.project_name}</td>
-                      <td style={S.td}><RolePill role={r.role} /></td>
-                      <td style={{ ...S.td, maxWidth: "180px", fontSize: "12px" }}>{r.task_name}</td>
-                      <td style={{ ...S.td, textAlign: "center", fontWeight: "700" }}>{r.units_assigned}</td>
-                      <td style={{ ...S.td, textAlign: "center", color: "#2ecc71", fontWeight: "700" }}>{r.units_completed}</td>
-                      <td style={{ ...S.td, textAlign: "center", color: Number(r.units_pending) > 0 ? "#e74c3c" : "#2ecc71", fontWeight: "700" }}>
-                        {r.units_pending}
-                      </td>
-                      <td style={{ ...S.td, minWidth: "120px" }}>
-                        <MiniBar pct={pct} />
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+     
     </div>
   );
 };

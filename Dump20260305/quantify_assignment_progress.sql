@@ -29,12 +29,14 @@ CREATE TABLE `assignment_progress` (
   `date` date NOT NULL,
   `units_completed` int NOT NULL DEFAULT '0',
   `remarks` text,
+  `status` enum('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
+  `rejection_reason` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `assignment_id` (`assignment_id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `assignment_progress_ibfk_1` FOREIGN KEY (`assignment_id`) REFERENCES `assignments` (`id`) ON DELETE CASCADE,
   CONSTRAINT `assignment_progress_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -43,7 +45,7 @@ CREATE TABLE `assignment_progress` (
 
 LOCK TABLES `assignment_progress` WRITE;
 /*!40000 ALTER TABLE `assignment_progress` DISABLE KEYS */;
-INSERT INTO `assignment_progress` VALUES (1,2,2,'2026-03-02',10,'None'),(6,17,39,'2026-03-02',5,NULL),(7,20,39,'2026-03-02',10,NULL);
+INSERT INTO `assignment_progress` VALUES (1,2,2,'2026-03-02',10,'None','APPROVED',NULL),(6,17,39,'2026-03-02',5,NULL,'APPROVED',NULL),(7,20,39,'2026-03-02',10,NULL,'APPROVED',NULL),(8,21,39,'2026-03-06',1,'None','APPROVED',NULL),(9,23,39,'2026-03-10',50,NULL,'APPROVED',NULL),(10,24,38,'2026-03-10',50,NULL,'APPROVED',NULL),(11,24,38,'2026-03-10',50,NULL,'APPROVED',NULL),(12,22,38,'2026-03-10',1,NULL,'REJECTED','recheck and raise againe'),(13,22,38,'2026-03-10',1,NULL,'APPROVED',NULL),(14,25,38,'2026-04-01',1,'Default','APPROVED',NULL),(15,3,2,'2026-04-09',2,NULL,'APPROVED',NULL),(16,29,2,'2026-05-11',50,'Default','APPROVED',NULL),(17,29,2,'2026-05-11',50,'Delay bcz of master data getting from other team','PENDING',NULL);
 /*!40000 ALTER TABLE `assignment_progress` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -56,4 +58,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-05 15:45:55
+-- Dump completed on 2026-06-08 13:11:29

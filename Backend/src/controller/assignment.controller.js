@@ -66,6 +66,33 @@ const bulkUpsertTaskLoads = async (req, res, next) => {
 };
 
 // GET /api/assignments/summary/:projectId
+// const getProjectSummary = async (req, res, next) => {
+//   try {
+//     const { projectId } = req.params;
+//     const rows = await query(
+//       `SELECT ptl.role, ptl.task_name, ptl.planned_units, rtc.unit_type,
+//          COALESCE(SUM(a.units_assigned), 0) AS total_assigned,
+//          COALESCE(SUM(ap_t.units_completed), 0) AS total_completed,
+//          GREATEST(ptl.planned_units - COALESCE(SUM(a.units_assigned), 0), 0) AS unassigned,
+//          GREATEST(COALESCE(SUM(a.units_assigned), 0) - COALESCE(SUM(ap_t.units_completed), 0), 0) AS pending
+//        FROM project_task_loads ptl
+//        LEFT JOIN role_task_catalog rtc ON ptl.role = rtc.role AND ptl.task_name = rtc.task_name
+//        LEFT JOIN assignments a ON a.project_id = ptl.project_id AND a.role = ptl.role AND a.task_name = ptl.task_name
+//        LEFT JOIN (SELECT assignment_id, SUM(units_completed) AS units_completed FROM assignment_progress GROUP BY assignment_id) ap_t ON ap_t.assignment_id = a.id
+//        WHERE ptl.project_id = ?
+//        GROUP BY ptl.role, ptl.task_name, ptl.planned_units, rtc.unit_type
+//        ORDER BY ptl.role, ptl.task_name`,
+//       [projectId]
+//     );
+//     const totals = {
+//       total_planned:   rows.reduce((s, r) => s + Number(r.planned_units),  0),
+//       total_assigned:  rows.reduce((s, r) => s + Number(r.total_assigned),  0),
+//       total_completed: rows.reduce((s, r) => s + Number(r.total_completed), 0),
+//       total_pending:   rows.reduce((s, r) => s + Number(r.pending),         0),
+//     };
+//     return res.status(200).json({ rows, totals });
+//   } catch (err) { return next(err); }
+// };
 const getProjectSummary = async (req, res, next) => {
   try {
     const { projectId } = req.params;
@@ -78,7 +105,12 @@ const getProjectSummary = async (req, res, next) => {
        FROM project_task_loads ptl
        LEFT JOIN role_task_catalog rtc ON ptl.role = rtc.role AND ptl.task_name = rtc.task_name
        LEFT JOIN assignments a ON a.project_id = ptl.project_id AND a.role = ptl.role AND a.task_name = ptl.task_name
-       LEFT JOIN (SELECT assignment_id, SUM(units_completed) AS units_completed FROM assignment_progress GROUP BY assignment_id) ap_t ON ap_t.assignment_id = a.id
+       LEFT JOIN (
+         SELECT assignment_id, SUM(units_completed) AS units_completed
+         FROM assignment_progress
+         WHERE status = 'APPROVED'
+         GROUP BY assignment_id
+       ) ap_t ON ap_t.assignment_id = a.id
        WHERE ptl.project_id = ?
        GROUP BY ptl.role, ptl.task_name, ptl.planned_units, rtc.unit_type
        ORDER BY ptl.role, ptl.task_name`,
@@ -95,19 +127,56 @@ const getProjectSummary = async (req, res, next) => {
 };
 
 // GET /api/assignments?projectId=
+// const getAssignmentsByProject = async (req, res, next) => {
+//   try {
+//     const { projectId } = req.query;
+//     if (!projectId) return res.status(400).json({ message: "projectId required" });
+//     const rows = await query(
+//       `SELECT a.id, a.project_id, p.project_name, a.user_id, u.name AS user_name,
+//               a.role, a.task_name, a.units_assigned
+//        FROM assignments a
+//        LEFT JOIN users u ON a.user_id = u.id
+//        LEFT JOIN projects p ON a.project_id = p.id
+//        WHERE a.project_id = ? ORDER BY a.role, u.name`,
+//       [projectId]
+//     );
+//     return res.status(200).json(rows);
+//   } catch (err) { return next(err); }
+// };
+// GET /api/assignments?projectId=
 const getAssignmentsByProject = async (req, res, next) => {
   try {
     const { projectId } = req.query;
     if (!projectId) return res.status(400).json({ message: "projectId required" });
+
     const rows = await query(
-      `SELECT a.id, a.project_id, p.project_name, a.user_id, u.name AS user_name,
-              a.role, a.task_name, a.units_assigned
+      `SELECT
+         a.id,
+         a.project_id,
+         p.project_name,
+         a.user_id,
+         u.name                                              AS user_name,
+         a.role,
+         a.task_name,
+         a.units_assigned,
+         COALESCE(ap_totals.units_completed, 0)             AS units_completed,
+         GREATEST(
+           a.units_assigned - COALESCE(ap_totals.units_completed, 0),
+           0
+         )                                                  AS units_pending
        FROM assignments a
-       LEFT JOIN users u ON a.user_id = u.id
+       LEFT JOIN users u    ON a.user_id    = u.id
        LEFT JOIN projects p ON a.project_id = p.id
-       WHERE a.project_id = ? ORDER BY a.role, u.name`,
+       LEFT JOIN (
+         SELECT assignment_id, SUM(units_completed) AS units_completed
+         FROM assignment_progress
+         GROUP BY assignment_id
+       ) ap_totals ON ap_totals.assignment_id = a.id
+       WHERE a.project_id = ?
+       ORDER BY a.role, u.name`,
       [projectId]
     );
+
     return res.status(200).json(rows);
   } catch (err) { return next(err); }
 };

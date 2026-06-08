@@ -11,8 +11,26 @@ const dashboardRoutes    = require("./routes/dashboard.routes");
 const assignmentRoutes   = require("./routes/assignment.routes");
 const notificationRoutes = require("./routes/notification.routes"); // ← NEW
 
-const app = express();
 
+const app = express();
+// Dummy Test API
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is running successfully",
+    time: new Date()
+  });
+});
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'workquantify-backend',
+    ip: '127.0.0.1',
+    port: 7001,
+    timestamp: new Date().toISOString()
+  });
+});
 app.use(cors());
 app.use(express.json());
 
