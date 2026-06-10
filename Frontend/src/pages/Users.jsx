@@ -10,7 +10,7 @@
 //       try {
 //         const token = localStorage.getItem('token');
 
-//         const res = await axios.get('http://localhost:7001/api/users', {
+//         const res = await axios.get('http://172.16.20.61:7001/api/users', {
 //           headers: {
 //             Authorization: token ? `Bearer ${token}` : '',
 //           },
@@ -83,7 +83,7 @@ const Users = () => {
       try {
         const token = localStorage.getItem('token');
 
-        const res = await axios.get('http://localhost:7001/api/users', {
+        const res = await axios.get('http://172.16.20.61:7001/api/users', {
           headers: {
             Authorization: token ? `Bearer ${token}` : '',
           },

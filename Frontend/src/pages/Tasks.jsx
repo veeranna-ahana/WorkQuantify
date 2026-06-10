@@ -28,8 +28,8 @@
 //         const headers = getAuthHeaders();
 
 //         const [projectsRes, usersRes] = await Promise.all([
-//           axios.get('http://localhost:7001/api/projects', { headers }),
-//           axios.get('http://localhost:7001/api/users', { headers }),
+//           axios.get('http://172.16.20.61:7001/api/projects', { headers }),
+//           axios.get('http://172.16.20.61:7001/api/users', { headers }),
 //         ]);
 
 //         setProjects(projectsRes.data || []);
@@ -60,7 +60,7 @@
 //   //       console.log("HEADERS:", headers);
 
 //   //       const res = await axios.get(
-//   //         `http://localhost:7001/api/tasks?projectId=${selectedProject}`,
+//   //         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
 //   //         { headers }
 //   //       );
     
@@ -86,7 +86,7 @@
 //       const headers = getAuthHeaders();
   
 //       const res = await axios.get(
-//         `http://localhost:7001/api/tasks?projectId=${selectedProject}`,
+//         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
 //         { headers }
 //       );
   
@@ -117,7 +117,7 @@
 //       const headers = getAuthHeaders();
   
 //       await axios.post(
-//         'http://localhost:7001/api/tasks',
+//         'http://172.16.20.61:7001/api/tasks',
 //         {
 //           project_id: selectedProject,
 //           assigned_user_id: selectedUserId,
@@ -261,8 +261,8 @@ const Tasks = () => {
         const headers = getAuthHeaders();
 
         const [projectsRes, usersRes] = await Promise.all([
-          axios.get('http://localhost:7001/api/projects', { headers }),
-          axios.get('http://localhost:7001/api/users', { headers }),
+          axios.get('http://172.16.20.61:7001/api/projects', { headers }),
+          axios.get('http://172.16.20.61:7001/api/users', { headers }),
         ]);
 
         setProjects(projectsRes.data || []);
@@ -289,7 +289,7 @@ const Tasks = () => {
       const headers = getAuthHeaders();
   
       const res = await axios.get(
-        `http://localhost:7001/api/tasks?projectId=${selectedProject}`,
+        `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
         { headers }
       );
   
@@ -320,7 +320,7 @@ const Tasks = () => {
       const headers = getAuthHeaders();
   
       await axios.post(
-        'http://localhost:7001/api/tasks',
+        'http://172.16.20.61:7001/api/tasks',
         {
           project_id: selectedProject,
           assigned_user_id: selectedUserId,

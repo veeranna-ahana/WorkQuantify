@@ -33,7 +33,7 @@
 //     const fetchProjects = async () => {
 //       try {
 //         const res = await axios.get(
-//           "http://localhost:7001/api/projects",
+//           "http://172.16.20.61:7001/api/projects",
 //           { headers: getAuthHeaders() }
 //         );
 //         setProjects(res.data || []);
@@ -55,7 +55,7 @@
 //     const fetchTasks = async () => {
 //       try {
 //         const res = await axios.get(
-//           `http://localhost:7001/api/tasks?projectId=${selectedProject}`,
+//           `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
 //           { headers: getAuthHeaders() }
 //         );
 //         setTasks(res.data || []);
@@ -72,7 +72,7 @@
 //   const fetchUpdates = async () => {
 //     try {
 //       const res = await axios.get(
-//         `http://localhost:7001/api/daily-updates?userId=1`, // later replace with real user id from token
+//         `http://172.16.20.61:7001/api/daily-updates?userId=1`, // later replace with real user id from token
 //         { headers: getAuthHeaders() }
 //       );
 //       setUpdates(res.data || []);
@@ -96,7 +96,7 @@
 
 //     try {
 //       await axios.post(
-//         "http://localhost:7001/api/daily-updates",
+//         "http://172.16.20.61:7001/api/daily-updates",
 //         {
 //           task_id: selectedTask,
 //           user_id: 1, // later remove this when backend uses req.user.id
@@ -284,7 +284,7 @@ const handleEdit = (update) => {
 const handleUpdate = async () => {
   try {
     await axios.put(
-      `http://localhost:7001/api/daily-updates/${editId}`,
+      `http://172.16.20.61:7001/api/daily-updates/${editId}`,
       editData,
       { headers: getAuthHeaders() }
     );
@@ -319,7 +319,7 @@ const handleUpdate = async () => {
     const fetchProjects = async () => {
       try {
         const res = await axios.get(
-          "http://localhost:7001/api/projects",
+          "http://172.16.20.61:7001/api/projects",
           { headers: getAuthHeaders() }
         );
         setProjects(res.data || []);
@@ -341,7 +341,7 @@ const handleUpdate = async () => {
   //   const fetchTasks = async () => {
   //     try {
   //       const res = await axios.get(
-  //         `http://localhost:7001/api/tasks?projectId=${selectedProject}`,
+  //         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
   //         { headers: getAuthHeaders() }
   //       );
   //       setTasks(res.data || []);
@@ -371,7 +371,7 @@ const handleUpdate = async () => {
   const fetchUpdates = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:7001/api/daily-updates?userId=${id}`,
+        `http://172.16.20.61:7001/api/daily-updates?userId=${id}`,
         { headers: getAuthHeaders() }
       );
       setUpdates(res.data || []);
@@ -395,7 +395,7 @@ const handleUpdate = async () => {
 
     try {
       // await axios.post(
-      //   "http://localhost:7001/api/daily-updates",
+      //   "http://172.16.20.61:7001/api/daily-updates",
       //   {
       //     task_id: selectedTask,
       //     user_id: id,
@@ -406,7 +406,7 @@ const handleUpdate = async () => {
       //   { headers: getAuthHeaders() }
       // );
       await axios.post(
-        "http://localhost:7001/api/daily-updates",
+        "http://172.16.20.61:7001/api/daily-updates",
         {
           project_id: selectedProject,
           role: selectedRole,
@@ -445,7 +445,7 @@ const handleUpdate = async () => {
 
     try {
       await axios.delete(
-        `http://localhost:7001/api/daily-updates/${updateId}`,
+        `http://172.16.20.61:7001/api/daily-updates/${updateId}`,
         { headers: getAuthHeaders() }
       );
       fetchUpdates();

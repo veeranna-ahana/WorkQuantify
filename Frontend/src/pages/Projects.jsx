@@ -12,7 +12,7 @@
 //       setLoading(true);
 //       const token = localStorage.getItem('token');
 
-//       const res = await axios.get('http://localhost:7001/api/projects', {
+//       const res = await axios.get('http://172.16.20.61:7001/api/projects', {
 //         headers: {
 //           Authorization: token ? `Bearer ${token}` : '',
 //         },
@@ -45,7 +45,7 @@
 //       const token = localStorage.getItem('token');
 
 //       await axios.post(
-//         'http://localhost:7001/api/projects',
+//         'http://172.16.20.61:7001/api/projects',
 //         { name: projectName,
 //             clientName: "Default Client",   
 //             startDate: null,
@@ -143,7 +143,7 @@ const Projects = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const res = await axios.get('http://localhost:7001/api/projects', {
+      const res = await axios.get('http://172.16.20.61:7001/api/projects', {
         headers: {
           Authorization: token ? `Bearer ${token}` : '',
         },
@@ -176,7 +176,7 @@ const Projects = () => {
       const token = localStorage.getItem('token');
 
       await axios.post(
-        'http://localhost:7001/api/projects',
+        'http://172.16.20.61:7001/api/projects',
         { 
           name: projectName,
           clientName: "Default Client",   
