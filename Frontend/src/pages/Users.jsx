@@ -1,79 +1,8 @@
-// import React, { useEffect, useState } from 'react';
-// import axios from 'axios';
-
-// const Users = () => {
-//   const [users, setUsers] = useState([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const fetchUsers = async () => {
-//       try {
-//         const token = localStorage.getItem('token');
-
-//         const res = await axios.get('http://172.16.20.61:7001/api/users', {
-//           headers: {
-//             Authorization: token ? `Bearer ${token}` : '',
-//           },
-//         });
-
-//         setUsers(res.data || []);
-//       } catch (err) {
-//         console.error(err);
-//         setUsers([]);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchUsers();
-//   }, []);
-
-//   if (loading) {
-//     return <div style={{ padding: '16px' }}>Loading users...</div>;
-//   }
-
-//   if (!users.length) {
-//     return <div style={{ padding: '16px' }}>No users found</div>;
-//   }
-
-//   return (
-//     <div style={{ padding: '16px' }}>
-//       <h2>Users</h2>
-//       <table
-//         style={{
-//           width: '100%',
-//           borderCollapse: 'collapse',
-//           marginTop: '12px',
-//         }}
-//       >
-//         <thead>
-//           <tr>
-//             <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
-//             <th style={{ border: '1px solid #ccc', padding: '8px' }}>Name</th>
-//             <th style={{ border: '1px solid #ccc', padding: '8px' }}>Email</th>
-//             <th style={{ border: '1px solid #ccc', padding: '8px' }}>Role</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {users.map((u) => (
-//             <tr key={u.id}>
-//               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{u.id}</td>
-//               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{u.name}</td>
-//               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{u.email}</td>
-//               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{u.role}</td>
-//             </tr>
-//           ))}
-//         </tbody>
-//       </table>
-//     </div>
-//   );
-// };
-
-// export default Users;
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-
+//const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +12,7 @@ const Users = () => {
       try {
         const token = localStorage.getItem('token');
 
-        const res = await axios.get('http://172.16.20.61:7001/api/users', {
+        const res = await axios.get('{BASE_URL}/api/users', {
           headers: {
             Authorization: token ? `Bearer ${token}` : '',
           },

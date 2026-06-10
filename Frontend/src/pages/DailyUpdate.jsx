@@ -1,213 +1,8 @@
-// import React, { useEffect, useState } from "react";
-// import axios from "axios";
 
-// const DailyUpdates = () => {
-//   const [projects, setProjects] = useState([]);
-//   const [tasks, setTasks] = useState([]);
-//   const [updates, setUpdates] = useState([]);
-
-//   const [selectedProject, setSelectedProject] = useState("");
-//   const [selectedTask, setSelectedTask] = useState("");
-//   const [date, setDate] = useState("");
-//   const [unitsCompleted, setUnitsCompleted] = useState("");
-//   const [hoursSpent, setHoursSpent] = useState("");
-
-//   const getAuthHeaders = () => {
-//     const token = localStorage.getItem("token");
-//     return {
-//       Authorization: token ? `Bearer ${token}` : "",
-//     };
-//   };
-
-//   const formatDate = (dateString) => {
-//     if (!dateString) return '';
-//     const date = new Date(dateString);
-//     const day = String(date.getDate()).padStart(2, '0');
-//     const month = String(date.getMonth() + 1).padStart(2, '0');
-//     const year = date.getFullYear();
-//     return `${day}-${month}-${year}`;
-//   };
-
-//   // 🔹 Fetch Projects
-//   useEffect(() => {
-//     const fetchProjects = async () => {
-//       try {
-//         const res = await axios.get(
-//           "http://172.16.20.61:7001/api/projects",
-//           { headers: getAuthHeaders() }
-//         );
-//         setProjects(res.data || []);
-//       } catch (err) {
-//         console.error(err);
-//       }
-//     };
-
-//     fetchProjects();
-//   }, []);
-
-//   // 🔹 Fetch Tasks when project changes
-//   useEffect(() => {
-//     if (!selectedProject) {
-//       setTasks([]);
-//       return;
-//     }
-
-//     const fetchTasks = async () => {
-//       try {
-//         const res = await axios.get(
-//           `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
-//           { headers: getAuthHeaders() }
-//         );
-//         setTasks(res.data || []);
-//       } catch (err) {
-//         console.error(err);
-//         setTasks([]);
-//       }
-//     };
-
-//     fetchTasks();
-//   }, [selectedProject]);
-
-//   // 🔹 Fetch Updates (for logged-in user)
-//   const fetchUpdates = async () => {
-//     try {
-//       const res = await axios.get(
-//         `http://172.16.20.61:7001/api/daily-updates?userId=1`, // later replace with real user id from token
-//         { headers: getAuthHeaders() }
-//       );
-//       setUpdates(res.data || []);
-//     } catch (err) {
-//       console.error(err);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchUpdates();
-//   }, []);
-
-//   // 🔹 Submit Daily Update
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-
-//     if (!selectedTask || !date) {
-//       alert("Task and date required");
-//       return;
-//     }
-
-//     try {
-//       await axios.post(
-//         "http://172.16.20.61:7001/api/daily-updates",
-//         {
-//           task_id: selectedTask,
-//           user_id: 1, // later remove this when backend uses req.user.id
-//           date,
-//           units_completed: unitsCompleted || 0,
-//           hours_spent: hoursSpent || 0,
-//         },
-//         { headers: getAuthHeaders() }
-//       );
-
-//       // Reset form
-//       setSelectedTask("");
-//       setDate("");
-//       setUnitsCompleted("");
-//       setHoursSpent("");
-
-//       fetchUpdates();
-//     } catch (err) {
-//       console.error(err);
-//       alert("Failed to add update");
-//     }
-//   };
-
-//   return (
-//     <div style={{ padding: "20px" }}>
-//       <h2>Daily Updates</h2>
-
-//       <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
-//         <select
-//           value={selectedProject}
-//           onChange={(e) => setSelectedProject(e.target.value)}
-//         >
-//           <option value="">Select Project</option>
-//           {projects.map((p) => (
-//             <option key={p.id} value={p.id}>
-//               {p.project_name}
-//             </option>
-//           ))}
-//         </select>
-
-//         <select
-//           value={selectedTask}
-//           onChange={(e) => setSelectedTask(e.target.value)}
-//         >
-//           <option value="">Select Task</option>
-//           {tasks.map((t) => (
-//             <option key={t.id} value={t.id}>
-//               {t.task_name}
-//             </option>
-//           ))}
-//         </select>
-
-//         <input
-//           type="date"
-//           value={date}
-//           onChange={(e) => setDate(e.target.value)}
-//         />
-
-//         <input
-//           type="number"
-//           placeholder="Units Completed"
-//           value={unitsCompleted}
-//           onChange={(e) => setUnitsCompleted(e.target.value)}
-//         />
-
-//         <input
-//           type="number"
-//           placeholder="Hours Spent"
-//           value={hoursSpent}
-//           onChange={(e) => setHoursSpent(e.target.value)}
-//         />
-
-//         <button type="submit">Add Update</button>
-//       </form>
-//       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-//         <h3>My Updates</h3>
-
-//         <table 
-//           border="1" 
-//           cellPadding="8"
-//           style={{ margin: '0 auto' }}
-//         >
-//           <thead>
-//             <tr>
-//               <th>ID</th>
-//               <th>Task ID</th>
-//               <th>Date</th>
-//               <th>Units</th>
-//               <th>Hours</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {updates.map((u) => (
-//               <tr key={u.id}>
-//                 <td>{u.id}</td>
-//                 <td>{u.task_id}</td>
-//                 <td>{formatDate(u.date)}</td>
-//                 <td>{u.units_completed}</td>
-//                 <td>{u.hours_spent}</td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default DailyUpdates;
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+//const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 
 const DailyUpdates = () => {
   const [projects, setProjects] = useState([]);
@@ -284,7 +79,7 @@ const handleEdit = (update) => {
 const handleUpdate = async () => {
   try {
     await axios.put(
-      `http://172.16.20.61:7001/api/daily-updates/${editId}`,
+      `${BASE_URL}/api/daily-updates/${editId}`,
       editData,
       { headers: getAuthHeaders() }
     );
@@ -319,7 +114,7 @@ const handleUpdate = async () => {
     const fetchProjects = async () => {
       try {
         const res = await axios.get(
-          "http://172.16.20.61:7001/api/projects",
+          `${BASE_URL}/api/projects`,
           { headers: getAuthHeaders() }
         );
         setProjects(res.data || []);
@@ -341,7 +136,7 @@ const handleUpdate = async () => {
   //   const fetchTasks = async () => {
   //     try {
   //       const res = await axios.get(
-  //         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
+  //         `${BASE_URL}/api/tasks?projectId=${selectedProject}`,
   //         { headers: getAuthHeaders() }
   //       );
   //       setTasks(res.data || []);
@@ -371,7 +166,7 @@ const handleUpdate = async () => {
   const fetchUpdates = async () => {
     try {
       const res = await axios.get(
-        `http://172.16.20.61:7001/api/daily-updates?userId=${id}`,
+        `${BASE_URL}/api/daily-updates?userId=${id}`,
         { headers: getAuthHeaders() }
       );
       setUpdates(res.data || []);
@@ -394,19 +189,8 @@ const handleUpdate = async () => {
     }
 
     try {
-      // await axios.post(
-      //   "http://172.16.20.61:7001/api/daily-updates",
-      //   {
-      //     task_id: selectedTask,
-      //     user_id: id,
-      //     date,
-      //     units_completed: unitsCompleted || 0,
-      //     hours_spent: hoursSpent || 0,
-      //   },
-      //   { headers: getAuthHeaders() }
-      // );
       await axios.post(
-        "http://172.16.20.61:7001/api/daily-updates",
+        `${BASE_URL}/api/daily-updates`,
         {
           project_id: selectedProject,
           role: selectedRole,
@@ -445,7 +229,7 @@ const handleUpdate = async () => {
 
     try {
       await axios.delete(
-        `http://172.16.20.61:7001/api/daily-updates/${updateId}`,
+        `${BASE_URL}/api/daily-updates/${updateId}`,
         { headers: getAuthHeaders() }
       );
       fetchUpdates();

@@ -8,7 +8,8 @@ import {
 console.log(localStorage.getItem("token"));
 
 
-const BASE_URL = "http://172.16.20.61:7001";
+//const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 const getHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
 });

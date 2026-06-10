@@ -1,238 +1,8 @@
-// import React, { useEffect, useState } from 'react';
-// import axios from 'axios';
 
-// const Tasks = () => {
-//   const [projects, setProjects] = useState([]);
-//   const [users, setUsers] = useState([]);
-//   const [tasks, setTasks] = useState([]);
-
-//   const [taskName, setTaskName] = useState('');
-//   const [selectedProject, setSelectedProject] = useState('');
-//   const [selectedUserId, setSelectedUserId] = useState('');
-
-//   const [loading, setLoading] = useState(true);
-//   const [creating, setCreating] = useState(false);
-
-//   const getAuthHeaders = () => {
-//     const token = localStorage.getItem('token');
-//     return {
-//       Authorization: token ? `Bearer ${token}` : '',
-//     };
-//   };
-
-//   // 🔥 Fetch projects & users on load
-//   useEffect(() => {
-//     const fetchInitialData = async () => {
-//       try {
-//         setLoading(true);
-//         const headers = getAuthHeaders();
-
-//         const [projectsRes, usersRes] = await Promise.all([
-//           axios.get('http://172.16.20.61:7001/api/projects', { headers }),
-//           axios.get('http://172.16.20.61:7001/api/users', { headers }),
-//         ]);
-
-//         setProjects(projectsRes.data || []);
-//         setUsers(usersRes.data || []);
-//       } catch (err) {
-//         console.error(err);
-//         setProjects([]);
-//         setUsers([]);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchInitialData();
-//   }, []);
-
-//   // 🔥 Fetch tasks when project changes
-//   // useEffect(() => {
-//   //   if (!selectedProject) {
-//   //     setTasks([]);
-//   //     return;
-//   //   }
-
-//   //   const fetchTasks = async () => {
-//   //     try {
-//   //       const headers = getAuthHeaders();
-//   //       console.log("TOKEN:", localStorage.getItem("token"));
-//   //       console.log("HEADERS:", headers);
-
-//   //       const res = await axios.get(
-//   //         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
-//   //         { headers }
-//   //       );
-    
-//   //       setTasks(res.data || []);
-//   //     } catch (err) {
-//   //       console.error(err);
-//   //       setTasks([]);
-//   //     }
-//   //   };
-    
-    
-
-//   //   fetchTasks();
-//   // }, [selectedProject]);
-
-//   const fetchTasks = async () => {
-//     if (!selectedProject) {
-//       setTasks([]);
-//       return;
-//     }
-  
-//     try {
-//       const headers = getAuthHeaders();
-  
-//       const res = await axios.get(
-//         `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
-//         { headers }
-//       );
-  
-//       setTasks(res.data || []);
-//     } catch (err) {
-//       console.error(err);
-//       setTasks([]);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchTasks();
-//   }, [selectedProject]);
-  
-
-//   // 🔥 Create task
-//   const handleCreateTask = async (e) => {
-//     e.preventDefault();
-  
-//     if (!taskName || !selectedProject || !selectedUserId) {
-//       alert("Please fill all required fields");
-//       return;
-//     }
-  
-//     try {
-//       setCreating(true);
-  
-//       const headers = getAuthHeaders();
-  
-//       await axios.post(
-//         'http://172.16.20.61:7001/api/tasks',
-//         {
-//           project_id: selectedProject,
-//           assigned_user_id: selectedUserId,
-//           task_name: taskName,
-//           planned_units: 0, // you can later make this input
-//         },
-//         { headers }
-//       );
-  
-//       setTaskName('');
-//       setSelectedUserId('');
-  
-//       // re-fetch tasks
-//       fetchTasks();
-  
-//     } catch (err) {
-//       console.error(err);
-//       alert('Failed to create task');
-//     } finally {
-//       setCreating(false);
-//     }
-//   };
-  
-
-//   return (
-//     <div style={{ padding: '16px' }}>
-//       <h2>Tasks</h2>
-
-//       <form onSubmit={handleCreateTask} style={{ marginBottom: '16px' }}>
-//         <input
-//           type="text"
-//           placeholder="Task name"
-//           value={taskName}
-//           onChange={(e) => setTaskName(e.target.value)}
-//           style={{ padding: '8px', marginRight: '8px' }}
-//         />
-
-//         <select
-//           value={selectedProject}
-//           onChange={(e) => setSelectedProject(e.target.value)}
-//           style={{ padding: '8px', marginRight: '8px' }}
-//         >
-//           <option value="">Select Project</option>
-//           {projects.map((p) => (
-//             <option key={p.id} value={p.id}>
-//               {p.project_name}
-//             </option>
-//           ))}
-//         </select>
-
-//         <select
-//           value={selectedUserId}
-//           onChange={(e) => setSelectedUserId(e.target.value)}
-//           style={{ padding: '8px', marginRight: '8px' }}
-//         >
-//           <option value="">Select User</option>
-//           {users.map((u) => (
-//             <option key={u.id} value={u.id}>
-//               {u.name}
-//             </option>
-//           ))}
-//         </select>
-
-//         <button type="submit" disabled={creating} style={{ padding: '8px 16px' }}>
-//           {creating ? 'Creating...' : 'Add Task'}
-//         </button>
-//       </form>
-
-//       {loading ? (
-//         <div>Loading...</div>
-//       ) : !tasks.length ? (
-//         <div>No tasks found</div>
-//       ) : (
-//         <table
-//           style={{
-//             width: '100%',
-//             borderCollapse: 'collapse',
-//             marginTop: '8px',
-//           }}
-//         >
-//           <thead>
-//             <tr>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>project_id</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>assigned_user_id</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Title</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>planned_units</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Status</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Due Date</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {tasks.map((t) => (
-//               <tr key={t.id}>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.id}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.project_id}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.assigned_user_id}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.task_name}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.planned_units}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{t.status}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-//                   {t.due_date ? new Date(t.due_date).toLocaleDateString() : '-'}
-//                 </td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Tasks;
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+//const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 
 const Tasks = () => {
   const [projects, setProjects] = useState([]);
@@ -261,8 +31,8 @@ const Tasks = () => {
         const headers = getAuthHeaders();
 
         const [projectsRes, usersRes] = await Promise.all([
-          axios.get('http://172.16.20.61:7001/api/projects', { headers }),
-          axios.get('http://172.16.20.61:7001/api/users', { headers }),
+          axios.get(`${BASE_URL}/api/projects`, { headers }),
+          axios.get(`${BASE_URL}/api/users`, { headers }),
         ]);
 
         setProjects(projectsRes.data || []);
@@ -289,7 +59,7 @@ const Tasks = () => {
       const headers = getAuthHeaders();
   
       const res = await axios.get(
-        `http://172.16.20.61:7001/api/tasks?projectId=${selectedProject}`,
+        `${BASE_URL}/api/tasks?projectId=${selectedProject}`,
         { headers }
       );
   
@@ -320,7 +90,7 @@ const Tasks = () => {
       const headers = getAuthHeaders();
   
       await axios.post(
-        'http://172.16.20.61:7001/api/tasks',
+        `${BASE_URL}/api/tasks`,
         {
           project_id: selectedProject,
           assigned_user_id: selectedUserId,

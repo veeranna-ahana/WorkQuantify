@@ -1,136 +1,8 @@
-// import React, { useEffect, useState } from 'react';
-// import axios from 'axios';
-
-// const Projects = () => {
-//   const [projects, setProjects] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [projectName, setProjectName] = useState('');
-//   const [creating, setCreating] = useState(false);
-
-//   const fetchProjects = async () => {
-//     try {
-//       setLoading(true);
-//       const token = localStorage.getItem('token');
-
-//       const res = await axios.get('http://172.16.20.61:7001/api/projects', {
-//         headers: {
-//           Authorization: token ? `Bearer ${token}` : '',
-//         },
-//       });
-
-//       setProjects(res.data || []);
-//     } catch (err) {
-//       console.error(err);
-//       setProjects([]);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchProjects();
-//   }, []);
-
-//   const handleCreateProject = async (e) => {
-//     e.preventDefault();
-//     console.log("Create clicked");
-  
-//     if (!projectName.trim()) {
-//       alert("Project name is required");
-//       return;
-//     }
-
-//     try {
-//       setCreating(true);
-//       const token = localStorage.getItem('token');
-
-//       await axios.post(
-//         'http://172.16.20.61:7001/api/projects',
-//         { name: projectName,
-//             clientName: "Default Client",   
-//             startDate: null,
-//             endDate: null,
-//             status: "ACTIVE" },
-//         {
-//           headers: {
-//             Authorization: token ? `Bearer ${token}` : '',
-//           },
-//         }
-//       );
-
-//       setProjectName('');
-//       await fetchProjects();
-//     } catch (err) {
-//       console.error(err);
-//       alert('Failed to create project.');
-//     } finally {
-//       setCreating(false);
-//     }
-//   };
-
-//   return (
-//     <div style={{ padding: '16px' }}>
-//       <h2>Projects</h2>
-
-//       <form onSubmit={handleCreateProject} style={{ marginBottom: '16px' }}>
-//         <input
-//           type="text"
-//           placeholder="Project name"
-//           value={projectName}
-//           onChange={(e) => setProjectName(e.target.value)}
-//           style={{ padding: '8px', marginRight: '8px', minWidth: '200px' }}
-//         />
-//         <button type="submit" style={{ padding: '8px 16px' }} disabled={creating}>
-//           {creating ? 'Creating...' : 'Add Project'}
-//         </button>
-//       </form>
-
-//       {loading ? (
-//         <div>Loading projects...</div>
-//       ) : !projects.length ? (
-//         <div>No projects found</div>
-//       ) : (
-//         <table
-//           style={{
-//             width: '100%',
-//             borderCollapse: 'collapse',
-//             marginTop: '8px',
-//           }}
-//         >
-//           <thead>
-//             <tr>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Project Name</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>client_name</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>start date</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>end date</th>
-//               <th style={{ border: '1px solid #ccc', padding: '8px' }}>status</th>
-//             </tr>
-//           </thead>
-//           <tbody>
-//             {projects.map((p) => (
-//               <tr key={p.id}>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.id}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.project_name}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>
-//                   {p.client_name}
-//                 </td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.start_date}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.end_date}</td>
-//                 <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.status}</td>
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Projects;
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+// const BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 
 const Projects = () => {
   const [projects, setProjects] = useState([]);
@@ -143,7 +15,7 @@ const Projects = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
 
-      const res = await axios.get('http://172.16.20.61:7001/api/projects', {
+      const res = await axios.get(`${BASE_URL}/api/projects`, {
         headers: {
           Authorization: token ? `Bearer ${token}` : '',
         },
@@ -176,7 +48,7 @@ const Projects = () => {
       const token = localStorage.getItem('token');
 
       await axios.post(
-        'http://172.16.20.61:7001/api/projects',
+        `${BASE_URL}/api/projects`,
         { 
           name: projectName,
           clientName: "Default Client",   

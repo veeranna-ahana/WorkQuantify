@@ -1,18 +1,33 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 
-const BASE_URL = "http://172.16.20.61:7001";
+
+//const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
+const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 const getHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
+
+const ROLE_ORDER = [
+  "BA",
+  "Solution Architect",
+  "UI",
+  "FE Dev",
+  "BE Dev",
+  "Tester",
+  "Deployment",
+  "Warranty & Support"
+];
 
 // ── Role colour map ───────────────────────────────────────────────────────────
 const ROLE_COLORS = {
   "BA":             { bg: "#f0e6ff", border: "#8e44ad", text: "#6c3483" },
+  "Solution Architect":             { bg: "#f0e6ff", border: "#8e44ad", text: "#6c3483" },
   "UI":             { bg: "#e8f4fd", border: "#2980b9", text: "#1a5276" },
-  "TL":             { bg: "#e8f8f0", border: "#27ae60", text: "#1e8449" },
   "FE Dev":         { bg: "#fff3e0", border: "#f39c12", text: "#9a6000" },
   "BE Dev":         { bg: "#fdecea", border: "#e74c3c", text: "#a93226" },
-  "Mobile/IOS Dev": { bg: "#e0f7fa", border: "#00acc1", text: "#006064" },
+  // "Mobile/IOS Dev": { bg: "#e0f7fa", border: "#00acc1", text: "#006064" },
   "Tester":         { bg: "#f3e5f5", border: "#8e24aa", text: "#6a1b9a" },
+  "Deployment":         { bg: "#f3e5f5", border: "#8e24aa", text: "#6a1b9a" },
+  "Warranty & Support":         { bg: "#f3e5f5", border: "#8e24aa", text: "#6a1b9a" },
 };
 const roleStyle = (role) => ROLE_COLORS[role] || { bg: "#f5f5f5", border: "#999", text: "#333" };
 const pct       = (a, b)  => (b > 0 ? Math.round((a / b) * 100) : 0);
@@ -345,7 +360,7 @@ const AssignmentScreen = () => {
         <section style={S.card}>
           <div style={S.sectionHead}>
             <div>
-              <div style={S.sectionTitle}>Define Project Effort & Assign</div>
+              <div style={S.sectionTitle}>Effort estimate & Assign</div>
               <div style={S.sectionSub}>
                 Set planned units per role &amp; task, then click <strong>Assign</strong> on any row to assign employees.
               </div>
@@ -359,7 +374,22 @@ const AssignmentScreen = () => {
             </div>
           </div>
 
-          {Object.entries(catalog).map(([role, tasks]) => {
+          {/* {Object.entries(catalog).map(([role, tasks]) => { */}
+            {Object.entries(catalog)
+  .sort(([roleA], [roleB]) => {
+    const indexA = ROLE_ORDER.indexOf(roleA);
+    const indexB = ROLE_ORDER.indexOf(roleB);
+
+    // Roles not found in ROLE_ORDER go to the end
+    if (indexA === -1 && indexB === -1) {
+      return roleA.localeCompare(roleB);
+    }
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+
+    return indexA - indexB;
+  })
+  .map(([role, tasks]) => {
             const rs          = roleStyle(role);
             const rolePlanned = tasks.reduce((s, t) => s + (Number(loadDraft[`${role}||${t.task_name}`]) || 0), 0);
             const roleAssigned= tasks.reduce((s, t) => s + Number(summaryByKey[`${role}||${t.task_name}`]?.total_assigned || 0), 0);

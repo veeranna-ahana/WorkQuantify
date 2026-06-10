@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 
-const BASE_URL = "http://172.16.20.61:7001";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const getHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
 });
