@@ -10,6 +10,7 @@ const utilizationRoutes  = require("./routes/utilization.routes");
 const dashboardRoutes    = require("./routes/dashboard.routes");
 const assignmentRoutes   = require("./routes/assignment.routes");
 const notificationRoutes = require("./routes/notification.routes"); // ← NEW
+const timesheetRoutes = require("./routes/timesheet.routes");
 
 
 const app = express();
@@ -43,6 +44,7 @@ app.use("/api/utilization",   utilizationRoutes);
 app.use("/api/dashboard",     dashboardRoutes);
 app.use("/api/assignments",   assignmentRoutes);
 app.use("/api/notifications", notificationRoutes); // ← NEW
+app.use("/api/timesheet", timesheetRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
