@@ -95,6 +95,8 @@ const MyWork = () => {
           units_completed: Number(logUnits),
           yesterdays_tasks: yesterdaysTasks,
           risks: risks,
+          project_id: logModal.project_id,
+          role: logModal.role,
         },
         { headers: getHeaders() }
       );
