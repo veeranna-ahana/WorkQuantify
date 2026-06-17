@@ -97,6 +97,7 @@ const MyWork = () => {
           risks: risks,
           project_id: logModal.project_id,
           role: logModal.role,
+          task_name: logModal.task_name,
         },
         { headers: getHeaders() }
       );
