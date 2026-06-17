@@ -55,7 +55,7 @@ const logProgress = async (req, res, next) => {
     const { 
       assignment_id, user_id, date, units_completed, 
       todays_tasks, total_time_needed, yesterdays_tasks, risks,
-      project_id, role
+      project_id, role, task_name
     } = req.body;
 
     if (!assignment_id || !user_id || !date) {
@@ -99,12 +99,12 @@ const logProgress = async (req, res, next) => {
       `INSERT INTO assignment_progress (
          assignment_id, user_id, date, units_completed, 
          todays_tasks, total_time_needed, yesterdays_tasks, risks, 
-         project_id, role, status
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+         project_id, role, task_name, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
       [
         assignment_id, user_id, date, units_completed || 0, 
         todays_tasks || null, total_time_needed || null, yesterdays_tasks || null, risks || null,
-        project_id || null, role || null
+        project_id || null, role || null, task_name || null
       ]
     );
 
