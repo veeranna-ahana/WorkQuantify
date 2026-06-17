@@ -52,7 +52,10 @@ const getMyAssignments = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const logProgress = async (req, res, next) => {
   try {
-    const { assignment_id, user_id, date, units_completed, remarks } = req.body;
+    const { 
+      assignment_id, user_id, date, units_completed, 
+      todays_tasks, total_time_needed, yesterdays_tasks, risks 
+    } = req.body;
 
     if (!assignment_id || !user_id || !date) {
       return res.status(400).json({ message: "assignment_id, user_id and date are required" });
@@ -92,9 +95,14 @@ const logProgress = async (req, res, next) => {
 
     // Insert with PENDING status
     const result = await query(
-      `INSERT INTO assignment_progress (assignment_id, user_id, date, units_completed, remarks, status)
-       VALUES (?, ?, ?, ?, ?, 'PENDING')`,
-      [assignment_id, user_id, date, units_completed || 0, remarks || null]
+      `INSERT INTO assignment_progress (
+         assignment_id, user_id, date, units_completed, 
+         todays_tasks, total_time_needed, yesterdays_tasks, risks, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+      [
+        assignment_id, user_id, date, units_completed || 0, 
+        todays_tasks || null, total_time_needed || null, yesterdays_tasks || null, risks || null
+      ]
     );
 
     // Fetch assignment context for notifications
