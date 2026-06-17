@@ -409,6 +409,15 @@ const Projects = () => {
   const [loading,  setLoading]                = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEffortModal, setShowEffortModal] = useState(false);
+  const fileInputRef = React.useRef(null);
+
+  const handleTimesheetUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      alert(`Backend API not integrated yet.\nSelected file: ${file.name}`);
+      e.target.value = null; // Reset input
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -440,6 +449,16 @@ const Projects = () => {
           <div style={P.underline} />
         </div>
         <div style={P.btnGroup}>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            onChange={handleTimesheetUpload} 
+            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+          />
+          <button onClick={() => fileInputRef.current.click()} style={P.uploadBtn}>
+            📁 Upload Timesheet
+          </button>
           <button onClick={() => setShowEffortModal(true)} style={P.effortBtn}>
             📊 Effort Estimate
           </button>
@@ -556,6 +575,12 @@ const P = {
     border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700,
     cursor: 'pointer', whiteSpace: 'nowrap',
     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  },
+  uploadBtn: {
+    padding: '9px 20px', background: '#3498db', color: '#fff',
+    border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700,
+    cursor: 'pointer', whiteSpace: 'nowrap',
+    boxShadow: '0 2px 8px rgba(52,152,219,0.3)',
   },
   tableWrap: { background: '#fff', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', overflow: 'hidden', border: '1px solid #f0f0f0' },
   table:     { width: '100%', borderCollapse: 'collapse' },
