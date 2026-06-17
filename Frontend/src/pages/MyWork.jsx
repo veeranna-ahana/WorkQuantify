@@ -41,6 +41,12 @@ const MyWork = () => {
   const [risks, setRisks] = useState("");
   const [logError, setLogError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   function today() {
     return new Date().toISOString().split("T")[0];
@@ -75,12 +81,18 @@ const MyWork = () => {
   };
 
   const submitLog = async () => {
-    if (!logUnits || logUnits <= 0) { setLogError("Enter units > 0"); return; }
-    // effective_pending = units_pending - units_awaiting
-    const effective = logModal.units_pending - (Number(logModal.units_awaiting) || 0);
-    if (Number(logUnits) > effective) {
-      setLogError(`Max ${effective} units available to log (${logModal.units_awaiting} awaiting approval)`);
-      return;
+    if (!logDate) { setLogError("Date is required."); return; }
+    if (!todaysTasks || !todaysTasks.trim()) { setLogError("Today's Tasks are required."); return; }
+    if (!totalTimeNeeded || !totalTimeNeeded.trim()) { setLogError("Total Time Needed is required."); return; }
+
+    if (logUnits && Number(logUnits) > 0) {
+      const effective = logModal.units_pending - (Number(logModal.units_awaiting) || 0);
+      if (Number(logUnits) > effective) {
+        setLogError(`Max ${effective} units available to log (${logModal.units_awaiting} awaiting approval)`);
+        return;
+      }
+    } else if (logUnits && Number(logUnits) < 0) {
+      setLogError("Units cannot be negative."); return;
     }
     setSaving(true);
     try {
@@ -102,9 +114,12 @@ const MyWork = () => {
         { headers: getHeaders() }
       );
       setLogModal(null);
+      showToast("Progress logged successfully!");
       fetchAssignments();
     } catch (err) {
-      setLogError(err.response?.data?.message || "Failed to log");
+      const errMsg = err.response?.data?.message || "Failed to log";
+      setLogError(errMsg);
+      showToast(errMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -126,6 +141,13 @@ const MyWork = () => {
 
   return (
     <div style={S.page}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ ...S.toast, background: toast.type === "error" ? "#e74c3c" : toast.type === "warn" ? "#f39c12" : "#27ae60" }}>
+          {toast.msg}
+        </div>
+      )}
+
       <h2 style={S.pageTitle}>My Work</h2>
 
       {/* ── Summary strip ── */}
@@ -262,23 +284,23 @@ const MyWork = () => {
             </div>
 
             <div style={S.modalField}>
-              <label style={S.label}>Date</label>
+              <label style={S.label}>Date <span style={{color: "#e74c3c"}}>*</span></label>
               <input type="date" value={logDate}
                 onChange={e => setLogDate(e.target.value)} style={S.input} />
             </div>
 
             <div style={S.modalField}>
-              <label style={S.label}>Today's Tasks</label>
+              <label style={S.label}>Today's Tasks <span style={{color: "#e74c3c"}}>*</span></label>
               <textarea value={todaysTasks}
-                onChange={e => setTodaysTasks(e.target.value)}
+                onChange={e => { setTodaysTasks(e.target.value); setLogError(""); }}
                 style={S.textarea} placeholder="What did you work on today?" />
             </div>
 
             <div style={S.formGrid}>
               <div style={S.modalField}>
-                <label style={S.label}>Total Time Needed</label>
+                <label style={S.label}>Total Time Needed <span style={{color: "#e74c3c"}}>*</span></label>
                 <input type="text" value={totalTimeNeeded}
-                  onChange={e => setTotalTimeNeeded(e.target.value)}
+                  onChange={e => { setTotalTimeNeeded(e.target.value); setLogError(""); }}
                   style={S.input} placeholder="e.g., 4h 30m" />
               </div>
               <div style={S.modalField}>
@@ -364,6 +386,7 @@ const StatChip = ({ label, value, color }) => (
 const S = {
   page: { padding: "20px", maxWidth: "1100px", margin: "0 auto", fontFamily: "sans-serif" },
   pageTitle: { fontSize: "22px", fontWeight: "800", color: "#1e272e", marginBottom: "20px", textAlign: "left" },
+  toast: { position: "fixed", top: 20, right: 20, zIndex: 9999, color: "white", padding: "12px 20px", borderRadius: "8px", fontWeight: 700, fontSize: "14px", boxShadow: "0 4px 16px rgba(0,0,0,0.2)" },
   summaryStrip: { display: "flex", gap: "16px", marginBottom: "24px", alignItems: "center", flexWrap: "wrap" },
   overallRing: { display: "flex", flexDirection: "column", alignItems: "center", marginLeft: "auto" },
   projectBlock: { background: "white", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "20px", overflow: "hidden" },
