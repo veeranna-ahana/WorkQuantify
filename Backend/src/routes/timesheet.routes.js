@@ -5,18 +5,26 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 const { 
     uploadTimesheet, 
     getBatches, 
-    getBatchDetails,
-    getReconciliationReport 
+    getBatchDetails, 
+    getProjectReconciliation,
+    getEmployeeReconciliation,
+    getBatchReconciliation
 } = require('../controller/timesheet.controller');
 
 // Configure multer for file upload
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Routes
+// Upload API - Stores ALL data
 router.post('/upload', authMiddleware, upload.single('file'), uploadTimesheet);
+
+// Batch Management APIs 
 router.get('/batches', authMiddleware, getBatches);
 router.get('/batches/:id', authMiddleware, getBatchDetails);
-router.get('/reconciliation/:id', authMiddleware, getReconciliationReport);
+
+
+// Reconciliation APIs
+router.get('/reconciliation/project/:projectId', authMiddleware, getProjectReconciliation);
+router.get('/reconciliation/employee/:userId', authMiddleware, getEmployeeReconciliation);
+router.get('/reconciliation/batch/:batchId', authMiddleware, getBatchReconciliation);
 
 module.exports = router;

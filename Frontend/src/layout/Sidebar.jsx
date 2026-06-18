@@ -21,6 +21,7 @@ const Icons = {
   logout:      "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   chevronLeft: "M15 18l-6-6 6-6",
   chevronRight:"M9 18l6-6-6-6",
+  reconciliation: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
 };
 
 const ADMIN_LINKS = [
@@ -29,6 +30,7 @@ const ADMIN_LINKS = [
   { to: "/projects", label: "Projects", icon: "projects" },
   { to: "/assignments", label: "Assignments", icon: "assignments" },
   { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW
+  { to: "/reconciliation", label: "Reconciliation", icon: "reconciliation" },
 ];
 
 const EMP_LINKS = [
