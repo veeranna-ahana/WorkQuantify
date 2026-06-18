@@ -52,10 +52,22 @@ const getMyAssignments = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const logProgress = async (req, res, next) => {
   try {
-    const { assignment_id, user_id, date, units_completed, remarks } = req.body;
+    const { 
+      assignment_id, user_id, date, units_completed, 
+      todays_tasks, total_time_needed, yesterdays_tasks, risks,
+      project_id, role, task_name
+    } = req.body;
 
     if (!assignment_id || !user_id || !date) {
       return res.status(400).json({ message: "assignment_id, user_id and date are required" });
+    }
+
+    if (!todays_tasks || !todays_tasks.trim()) {
+      return res.status(400).json({ message: "Today's Tasks are required" });
+    }
+
+    if (!total_time_needed || !total_time_needed.trim()) {
+      return res.status(400).json({ message: "Total Time Needed is required" });
     }
 
     // Guard: don't allow logging more than what's pending (APPROVED only)
@@ -78,23 +90,34 @@ const logProgress = async (req, res, next) => {
     const { units_assigned, already_done, awaiting } = pendingRows[0];
     const effective_pending = units_assigned - already_done - awaiting;
 
-    if (effective_pending <= 0) {
-      return res.status(400).json({
-        message: `No pending units available. You have ${awaiting} unit(s) awaiting approval.`
-      });
-    }
+    if (units_completed && Number(units_completed) > 0) {
+      if (effective_pending <= 0) {
+        return res.status(400).json({
+          message: `No pending units available. You have ${awaiting} unit(s) awaiting approval.`
+        });
+      }
 
-    if (units_completed > effective_pending) {
-      return res.status(400).json({
-        message: `Cannot log ${units_completed} units. Only ${effective_pending} units available to log.`
-      });
+      if (Number(units_completed) > effective_pending) {
+        return res.status(400).json({
+          message: `Cannot log ${units_completed} units. Only ${effective_pending} units available to log.`
+        });
+      }
+    } else if (units_completed && Number(units_completed) < 0) {
+      return res.status(400).json({ message: "Units cannot be negative." });
     }
 
     // Insert with PENDING status
     const result = await query(
-      `INSERT INTO assignment_progress (assignment_id, user_id, date, units_completed, remarks, status)
-       VALUES (?, ?, ?, ?, ?, 'PENDING')`,
-      [assignment_id, user_id, date, units_completed || 0, remarks || null]
+      `INSERT INTO assignment_progress (
+         assignment_id, user_id, date, units_completed, 
+         todays_tasks, total_time_needed, yesterdays_tasks, risks, 
+         project_id, role, task_name, status
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
+      [
+        assignment_id, user_id, date, units_completed || 0, 
+        todays_tasks || null, total_time_needed || null, yesterdays_tasks || null, risks || null,
+        project_id || null, role || null, task_name || null
+      ]
     );
 
     // Fetch assignment context for notifications

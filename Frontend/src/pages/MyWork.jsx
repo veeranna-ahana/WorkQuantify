@@ -2,23 +2,23 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 // const BASE_URL = process.env.REACT_APP_API_BASE_URL;
-const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const getHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
 });
 
 // ── Mini progress ring ────────────────────────────────────────────────────────
 const Ring = ({ pct, size = 54 }) => {
-  const r    = (size - 8) / 2;
+  const r = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const fill = (pct / 100) * circ;
   const color = pct >= 100 ? "#2ecc71" : pct > 50 ? "#f39c12" : "#e74c3c";
   return (
     <svg width={size} height={size} style={{ flexShrink: 0 }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f0f0f0" strokeWidth={6} />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={6}
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f0f0f0" strokeWidth={6} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={6}
         strokeDasharray={`${fill} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
         style={{ transition: "stroke-dasharray 0.6s ease" }} />
       <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle"
         fontSize="11" fontWeight="700" fill={color}>{pct}%</text>
@@ -29,15 +29,24 @@ const Ring = ({ pct, size = 54 }) => {
 const MyWork = () => {
   const userId = localStorage.getItem("UserID");
   const [assignments, setAssignments] = useState([]);
-  const [loading,     setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
 
   // Log progress modal
-  const [logModal,    setLogModal]    = useState(null);
-  const [logDate,     setLogDate]     = useState(today());
-  const [logUnits,    setLogUnits]    = useState("");
-  const [logRemarks,  setLogRemarks]  = useState("");
-  const [logError,    setLogError]    = useState("");
-  const [saving,      setSaving]      = useState(false);
+  const [logModal, setLogModal] = useState(null);
+  const [logDate, setLogDate] = useState(today());
+  const [todaysTasks, setTodaysTasks] = useState("");
+  const [totalTimeNeeded, setTotalTimeNeeded] = useState("");
+  const [logUnits, setLogUnits] = useState("");
+  const [yesterdaysTasks, setYesterdaysTasks] = useState("");
+  const [risks, setRisks] = useState("");
+  const [logError, setLogError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   function today() {
     return new Date().toISOString().split("T")[0];
@@ -63,18 +72,27 @@ const MyWork = () => {
   const openLog = (a) => {
     setLogModal(a);
     setLogDate(today());
+    setTodaysTasks("");
+    setTotalTimeNeeded("");
     setLogUnits("");
-    setLogRemarks("");
+    setYesterdaysTasks("");
+    setRisks("");
     setLogError("");
   };
 
   const submitLog = async () => {
-    if (!logUnits || logUnits <= 0) { setLogError("Enter units > 0"); return; }
-    // effective_pending = units_pending - units_awaiting
-    const effective = logModal.units_pending - (Number(logModal.units_awaiting) || 0);
-    if (Number(logUnits) > effective) {
-      setLogError(`Max ${effective} units available to log (${logModal.units_awaiting} awaiting approval)`);
-      return;
+    if (!logDate) { setLogError("Date is required."); return; }
+    if (!todaysTasks || !todaysTasks.trim()) { setLogError("Today's Tasks are required."); return; }
+    if (!totalTimeNeeded || !totalTimeNeeded.trim()) { setLogError("Total Time Needed is required."); return; }
+
+    if (logUnits && Number(logUnits) > 0) {
+      const effective = logModal.units_pending - (Number(logModal.units_awaiting) || 0);
+      if (Number(logUnits) > effective) {
+        setLogError(`Max ${effective} units available to log (${logModal.units_awaiting} awaiting approval)`);
+        return;
+      }
+    } else if (logUnits && Number(logUnits) < 0) {
+      setLogError("Units cannot be negative."); return;
     }
     setSaving(true);
     try {
@@ -82,17 +100,26 @@ const MyWork = () => {
         `${BASE_URL}/api/utilization/log-progress`,
         {
           assignment_id: logModal.assignment_id,
-          user_id:       userId,
-          date:          logDate,
+          user_id: userId,
+          date: logDate,
+          todays_tasks: todaysTasks,
+          total_time_needed: totalTimeNeeded,
           units_completed: Number(logUnits),
-          remarks:       logRemarks,
+          yesterdays_tasks: yesterdaysTasks,
+          risks: risks,
+          project_id: logModal.project_id,
+          role: logModal.role,
+          task_name: logModal.task_name,
         },
         { headers: getHeaders() }
       );
       setLogModal(null);
+      showToast("Progress logged successfully!");
       fetchAssignments();
     } catch (err) {
-      setLogError(err.response?.data?.message || "Failed to log");
+      const errMsg = err.response?.data?.message || "Failed to log";
+      setLogError(errMsg);
+      showToast(errMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -106,23 +133,30 @@ const MyWork = () => {
     return acc;
   }, {});
 
-  const totalAssigned  = assignments.reduce((s, a) => s + Number(a.units_assigned),  0);
-  const totalCompleted = assignments.reduce((s, a) => s + Number(a.units_completed),  0);
-  const totalAwaiting  = assignments.reduce((s, a) => s + Number(a.units_awaiting || 0), 0);
-  const totalPending   = assignments.reduce((s, a) => s + Number(a.units_pending),   0);
-  const overallPct     = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+  const totalAssigned = assignments.reduce((s, a) => s + Number(a.units_assigned), 0);
+  const totalCompleted = assignments.reduce((s, a) => s + Number(a.units_completed), 0);
+  const totalAwaiting = assignments.reduce((s, a) => s + Number(a.units_awaiting || 0), 0);
+  const totalPending = assignments.reduce((s, a) => s + Number(a.units_pending), 0);
+  const overallPct = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
 
   return (
     <div style={S.page}>
+      {/* Toast */}
+      {toast && (
+        <div style={{ ...S.toast, background: toast.type === "error" ? "#e74c3c" : toast.type === "warn" ? "#f39c12" : "#27ae60" }}>
+          {toast.msg}
+        </div>
+      )}
+
       <h2 style={S.pageTitle}>My Work</h2>
 
       {/* ── Summary strip ── */}
       {!loading && assignments.length > 0 && (
         <div style={S.summaryStrip}>
-          <StatChip label="Total Assigned"    value={totalAssigned}  color="#3498db" />
-          <StatChip label="Approved"          value={totalCompleted} color="#2ecc71" />
-          <StatChip label="Awaiting Approval" value={totalAwaiting}  color="#f39c12" />
-          <StatChip label="Pending"           value={totalPending}   color="#e74c3c" />
+          <StatChip label="Total Assigned" value={totalAssigned} color="#3498db" />
+          <StatChip label="Approved" value={totalCompleted} color="#2ecc71" />
+          <StatChip label="Awaiting Approval" value={totalAwaiting} color="#f39c12" />
+          <StatChip label="Pending" value={totalPending} color="#e74c3c" />
           <div style={S.overallRing}>
             <Ring pct={overallPct} size={70} />
             <span style={{ fontSize: "12px", color: "#777", marginTop: "4px" }}>Overall</span>
@@ -141,9 +175,9 @@ const MyWork = () => {
 
       {/* ── Project groups ── */}
       {Object.entries(byProject).map(([projectName, rows]) => {
-        const pAssigned  = rows.reduce((s, r) => s + Number(r.units_assigned),  0);
-        const pCompleted = rows.reduce((s, r) => s + Number(r.units_completed),  0);
-        const pPct       = pAssigned > 0 ? Math.round((pCompleted / pAssigned) * 100) : 0;
+        const pAssigned = rows.reduce((s, r) => s + Number(r.units_assigned), 0);
+        const pCompleted = rows.reduce((s, r) => s + Number(r.units_completed), 0);
+        const pPct = pAssigned > 0 ? Math.round((pCompleted / pAssigned) * 100) : 0;
 
         return (
           <div key={projectName} style={S.projectBlock}>
@@ -172,10 +206,10 @@ const MyWork = () => {
                 {rows.map((a) => {
                   const completedPct = a.units_assigned > 0
                     ? Math.round((a.units_completed / a.units_assigned) * 100) : 0;
-                  const awaiting      = Number(a.units_awaiting || 0);
+                  const awaiting = Number(a.units_awaiting || 0);
                   // effective pending = units not yet logged OR awaiting approval
                   const effectivePend = Math.max(a.units_pending - awaiting, 0);
-                  const fullyDone     = Number(a.units_pending) === 0 && awaiting === 0;
+                  const fullyDone = Number(a.units_pending) === 0 && awaiting === 0;
 
                   return (
                     <tr key={a.assignment_id} style={fullyDone ? S.trDone : {}}>
@@ -250,23 +284,47 @@ const MyWork = () => {
             </div>
 
             <div style={S.modalField}>
-              <label style={S.label}>Date</label>
+              <label style={S.label}>Date <span style={{color: "#e74c3c"}}>*</span></label>
               <input type="date" value={logDate}
                 onChange={e => setLogDate(e.target.value)} style={S.input} />
             </div>
+
             <div style={S.modalField}>
-              <label style={S.label}>Units Completed Today</label>
-              <input type="number" value={logUnits} min="1"
-                max={Math.max(logModal.units_pending - Number(logModal.units_awaiting || 0), 0)}
-                onChange={e => { setLogUnits(e.target.value); setLogError(""); }}
-                style={S.input}
-                placeholder={`Max ${Math.max(logModal.units_pending - Number(logModal.units_awaiting || 0), 0)}`} />
+              <label style={S.label}>Today's Tasks <span style={{color: "#e74c3c"}}>*</span></label>
+              <textarea value={todaysTasks}
+                onChange={e => { setTodaysTasks(e.target.value); setLogError(""); }}
+                style={S.textarea} placeholder="What did you work on today?" />
             </div>
+
+            <div style={S.formGrid}>
+              <div style={S.modalField}>
+                <label style={S.label}>Total Time Needed <span style={{color: "#e74c3c"}}>*</span></label>
+                <input type="text" value={totalTimeNeeded}
+                  onChange={e => { setTotalTimeNeeded(e.target.value); setLogError(""); }}
+                  style={S.input} placeholder="e.g., 4h 30m" />
+              </div>
+              <div style={S.modalField}>
+                <label style={S.label}>Units Completed Today</label>
+                <input type="number" value={logUnits} min="1"
+                  max={Math.max(logModal.units_pending - Number(logModal.units_awaiting || 0), 0)}
+                  onChange={e => { setLogUnits(e.target.value); setLogError(""); }}
+                  style={S.input}
+                  placeholder={`Max ${Math.max(logModal.units_pending - Number(logModal.units_awaiting || 0), 0)}`} />
+              </div>
+            </div>
+
             <div style={S.modalField}>
-              <label style={S.label}>Remarks (optional)</label>
-              <input type="text" value={logRemarks}
-                onChange={e => setLogRemarks(e.target.value)}
-                style={S.input} placeholder="Any notes…" />
+              <label style={S.label}>Yesterday's Tasks (Optional)</label>
+              <textarea value={yesterdaysTasks}
+                onChange={e => setYesterdaysTasks(e.target.value)}
+                style={S.textarea} placeholder="What did you work on yesterday?" />
+            </div>
+
+            <div style={S.modalField}>
+              <label style={S.label}>Risks / Blockers</label>
+              <textarea value={risks}
+                onChange={e => setRisks(e.target.value)}
+                style={S.textarea} placeholder="Any risks or blockers?" />
             </div>
 
             {logError && <p style={S.error}>{logError}</p>}
@@ -299,7 +357,7 @@ const RoleBadge = ({ role }) => (
 
 // Dual-segment bar: green (approved) + orange (awaiting)
 const ProgressBar = ({ pct, awaiting, assigned }) => {
-  const color       = pct >= 100 ? "#2ecc71" : pct > 50 ? "#f39c12" : "#e74c3c";
+  const color = pct >= 100 ? "#2ecc71" : pct > 50 ? "#f39c12" : "#e74c3c";
   const awaitingPct = assigned > 0 ? Math.min((awaiting / assigned) * 100, 100 - pct) : 0;
   return (
     <div style={{ background: "#f0f0f0", borderRadius: "4px", height: "8px", overflow: "hidden", display: "flex" }}>
@@ -326,37 +384,40 @@ const StatChip = ({ label, value, color }) => (
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
-  page:          { padding: "20px", maxWidth: "1100px", margin: "0 auto", fontFamily: "sans-serif" },
-  pageTitle:     { fontSize: "22px", fontWeight: "800", color: "#1e272e", marginBottom: "20px" ,textAlign: "left"},
-  summaryStrip:  { display: "flex", gap: "16px", marginBottom: "24px", alignItems: "center", flexWrap: "wrap" },
-  overallRing:   { display: "flex", flexDirection: "column", alignItems: "center", marginLeft: "auto" },
-  projectBlock:  { background: "white", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "20px", overflow: "hidden" },
+  page: { padding: "20px", maxWidth: "1100px", margin: "0 auto", fontFamily: "sans-serif" },
+  pageTitle: { fontSize: "22px", fontWeight: "800", color: "#1e272e", marginBottom: "20px", textAlign: "left" },
+  toast: { position: "fixed", top: 20, right: 20, zIndex: 9999, color: "white", padding: "12px 20px", borderRadius: "8px", fontWeight: 700, fontSize: "14px", boxShadow: "0 4px 16px rgba(0,0,0,0.2)" },
+  summaryStrip: { display: "flex", gap: "16px", marginBottom: "24px", alignItems: "center", flexWrap: "wrap" },
+  overallRing: { display: "flex", flexDirection: "column", alignItems: "center", marginLeft: "auto" },
+  projectBlock: { background: "white", borderRadius: "10px", boxShadow: "0 2px 10px rgba(0,0,0,0.08)", marginBottom: "20px", overflow: "hidden" },
   projectHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#1e272e" },
-  projectName:   { color: "white", fontWeight: "700", fontSize: "15px" },
-  projectMeta:   { display: "flex", alignItems: "center", gap: "12px" },
-  metaChip:      { color: "#bbb", fontSize: "13px" },
-  table:         { width: "100%", borderCollapse: "collapse" },
-  th:            { padding: "10px 14px", background: "#f8f9fa", fontSize: "12px", fontWeight: "700", color: "#666", textAlign: "center", borderBottom: "1px solid #eee" },
-  td:            { padding: "10px 14px", fontSize: "13px", color: "#333", borderBottom: "1px solid #f5f5f5" },
-  trDone:        { opacity: 0.6, background: "#fafff9" },
-  doneBadge:     { color: "#2ecc71", fontWeight: "700", fontSize: "13px" },
+  projectName: { color: "white", fontWeight: "700", fontSize: "15px" },
+  projectMeta: { display: "flex", alignItems: "center", gap: "12px" },
+  metaChip: { color: "#bbb", fontSize: "13px" },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: { padding: "10px 14px", background: "#f8f9fa", fontSize: "12px", fontWeight: "700", color: "#666", textAlign: "center", borderBottom: "1px solid #eee" },
+  td: { padding: "10px 14px", fontSize: "13px", color: "#333", borderBottom: "1px solid #f5f5f5" },
+  trDone: { opacity: 0.6, background: "#fafff9" },
+  doneBadge: { color: "#2ecc71", fontWeight: "700", fontSize: "13px" },
   awaitingBadge: { display: "inline-block", padding: "2px 8px", borderRadius: "10px", background: "#fff3cd", color: "#856404", fontSize: "11px", fontWeight: "700" },
-  logBtn:        { padding: "5px 12px", background: "#e74c3c", color: "white", border: "none", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" },
-  emptyState:    { textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "10px" },
+  logBtn: { padding: "5px 12px", background: "#e74c3c", color: "white", border: "none", borderRadius: "4px", fontSize: "12px", cursor: "pointer", fontWeight: "600" },
+  emptyState: { textAlign: "center", padding: "60px 20px", background: "white", borderRadius: "10px" },
   // Modal
-  overlay:       { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
-  modal:         { background: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "440px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" },
-  modalTitle:    { fontSize: "18px", fontWeight: "800", color: "#1e272e", marginBottom: "6px" },
-  modalSub:      { fontSize: "13px", color: "#777", marginBottom: "12px" },
-  modalInfo:     { background: "#f8f9fa", border: "1px solid #eee", borderRadius: "6px", padding: "10px 14px", marginBottom: "12px", fontSize: "13px", color: "#555" },
-  approvalNotice:{ background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "6px", padding: "9px 14px", marginBottom: "16px", fontSize: "12px", color: "#7a5c00" },
-  modalField:    { marginBottom: "14px" },
-  modalActions:  { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" },
-  label:         { display: "block", fontSize: "13px", fontWeight: "600", color: "#555", marginBottom: "6px" },
-  input:         { width: "100%", padding: "9px 12px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" },
-  error:         { color: "#e74c3c", fontSize: "12px", marginTop: "4px" },
-  cancelBtn:     { padding: "8px 18px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" },
-  saveBtn:       { padding: "8px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "700" },
+  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px", boxSizing: "border-box" },
+  modal: { background: "white", borderRadius: "12px", padding: "28px", width: "100%", maxWidth: "600px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)", boxSizing: "border-box" },
+  modalTitle: { fontSize: "18px", fontWeight: "800", color: "#1e272e", marginBottom: "6px" },
+  formGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "0 16px" },
+  modalSub: { fontSize: "13px", color: "#777", marginBottom: "12px" },
+  modalInfo: { background: "#f8f9fa", border: "1px solid #eee", borderRadius: "6px", padding: "10px 14px", marginBottom: "12px", fontSize: "13px", color: "#555" },
+  approvalNotice: { background: "#fff8e1", border: "1px solid #ffe082", borderRadius: "6px", padding: "9px 14px", marginBottom: "16px", fontSize: "12px", color: "#7a5c00" },
+  modalField: { marginBottom: "14px" },
+  modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" },
+  label: { display: "block", fontSize: "13px", fontWeight: "600", color: "#555", marginBottom: "6px" },
+  input: { width: "100%", padding: "9px 12px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" },
+  textarea: { width: "100%", padding: "9px 12px", border: "1px solid #ddd", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box", minHeight: "60px", resize: "vertical", fontFamily: "inherit" },
+  error: { color: "#e74c3c", fontSize: "12px", marginTop: "4px" },
+  cancelBtn: { padding: "8px 18px", background: "#f0f0f0", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" },
+  saveBtn: { padding: "8px 22px", background: "#27ae60", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "700" },
 };
 
 export default MyWork;
