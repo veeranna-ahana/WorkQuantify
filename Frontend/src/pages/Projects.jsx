@@ -9,15 +9,15 @@ const getHeaders = () => ({
 
 // ── Effort estimate role config ───────────────────────────────────────────────
 const EFFORT_ROLES = [
-  { role: 'BA',                   unitLabel: '' },
-  { role: 'Solution Architect',   unitLabel: '' },
-  { role: 'UI/UX',                unitLabel: '' },
-  { role: 'FE Dev',               unitLabel: 'No of UI Screens' },
-  { role: 'BE Dev',               unitLabel: 'No of APIs' },
-  { role: 'Tester',               unitLabel: 'No of Cases' },
-  { role: 'Deployment',           unitLabel: '' },
-  { role: 'Warranty & Support',   unitLabel: '' },
-  { role: 'Project Manager',      unitLabel: '' },
+  { role: 'BA', unitLabel: '' },
+  { role: 'Solution Architect', unitLabel: '' },
+  { role: 'UI/UX', unitLabel: '' },
+  { role: 'FE Dev', unitLabel: 'No of UI Screens' },
+  { role: 'BE Dev', unitLabel: 'No of APIs' },
+  { role: 'Tester', unitLabel: 'No of Cases' },
+  { role: 'Deployment', unitLabel: '' },
+  { role: 'Warranty & Support', unitLabel: '' },
+  { role: 'Project Manager', unitLabel: '' },
 ];
 
 const HOURS_PER_DAY = 8;
@@ -34,7 +34,7 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
     customer: '',
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState('');
+  const [error, setError] = useState('');
 
   const handleChange = (field, val) => {
     setForm(prev => ({ ...prev, [field]: val }));
@@ -43,22 +43,22 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
 
   const handleSubmit = async () => {
     if (!form.projectName.trim()) return setError('Project Name is required.');
-    if (!form.customer.trim())    return setError('Customer is required.');
+    if (!form.customer.trim()) return setError('Customer is required.');
     setSaving(true);
     try {
       await axios.post(
         `${BASE_URL}/api/projects`,
         {
-          name:        form.projectName.trim(),
-          clientName:  form.customer.trim(),
+          name: form.projectName.trim(),
+          clientName: form.customer.trim(),
           description: form.description.trim(),
-          nbdId:       form.nbdId.trim(),
-          o2dId:       form.o2dId.trim(),
+          nbdId: form.nbdId.trim(),
+          o2dId: form.o2dId.trim(),
           projectCode: form.projectCode.trim(),
           subCategory: form.subCategory.trim(),
-          startDate:   null,
-          endDate:     null,
-          status:      'ACTIVE',
+          startDate: null,
+          endDate: null,
+          status: 'ACTIVE',
         },
         { headers: getHeaders() }
       );
@@ -72,13 +72,13 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
   };
 
   const fields = [
-    { key: 'projectName',  label: 'Project Name',   required: true,  placeholder: 'e.g. ERP Phase 2' },
-    { key: 'description',  label: 'Description',    required: false, placeholder: 'Brief overview…',  multiline: true },
-    { key: 'nbdId',        label: 'NBD ID',         required: false, placeholder: 'e.g. NBD-2024-001' },
-    { key: 'o2dId',        label: 'O2D ID',         required: false, placeholder: 'e.g. O2D-2024-042' },
-    { key: 'projectCode',  label: 'Project Code',   required: false, placeholder: 'e.g. PRJ-001' },
-    { key: 'subCategory',  label: 'Sub Category',   required: false, placeholder: 'e.g. Web App / Mobile' },
-    { key: 'customer',     label: 'Customer',       required: true,  placeholder: 'Client or company name' },
+    { key: 'projectName', label: 'Project Name', required: true, placeholder: 'e.g. ERP Phase 2' },
+    { key: 'description', label: 'Description', required: false, placeholder: 'Brief overview…', multiline: true },
+    { key: 'nbdId', label: 'NBD ID', required: false, placeholder: 'e.g. NBD-2024-001' },
+    { key: 'o2dId', label: 'O2D ID', required: false, placeholder: 'e.g. O2D-2024-042' },
+    { key: 'projectCode', label: 'Project Code', required: false, placeholder: 'e.g. PRJ-001' },
+    { key: 'subCategory', label: 'Sub Category', required: false, placeholder: 'e.g. Web App / Mobile' },
+    { key: 'customer', label: 'Customer', required: true, placeholder: 'Client or company name' },
   ];
 
   return (
@@ -127,7 +127,7 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
 
         {/* Footer */}
         <div style={O.footer}>
-          <button onClick={onClose}    style={O.cancelBtn}>Cancel</button>
+          <button onClick={onClose} style={O.cancelBtn}>Cancel</button>
           <button onClick={handleSubmit} style={O.submitBtn} disabled={saving}>
             {saving ? 'Creating…' : '+ Create Project'}
           </button>
@@ -139,20 +139,20 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
 
 // ── Effort Estimate Modal ─────────────────────────────────────────────────────
 // const EffortEstimateModal = ({ onClose }) => {
-  const EffortEstimateModal = ({ projects, onClose, onSaved }) => {
-    const [selectedProject, setSelectedProject] = useState('');
-const [saving, setSaving] = useState(false);
+const EffortEstimateModal = ({ projects, onClose, onSaved }) => {
+  const [selectedProject, setSelectedProject] = useState('');
+  const [saving, setSaving] = useState(false);
   // rows: { role, days, hrs, bufferDays, bufferHrs, totalHrs, units, unitLabel }
   const [rows, setRows] = useState(
     EFFORT_ROLES.map(r => ({
-      role:       r.role,
-      unitLabel:  r.unitLabel,
-      days:       '',
-      hrs:        '',
+      role: r.role,
+      unitLabel: r.unitLabel,
+      days: '',
+      hrs: '',
       bufferDays: '',
-      bufferHrs:  '',
-      totalHrs:   '',
-      units:      '',
+      bufferHrs: '',
+      totalHrs: '',
+      units: '',
     }))
   );
 
@@ -172,8 +172,8 @@ const [saving, setSaving] = useState(false);
         next[idx].bufferHrs = isNaN(bd) ? '' : String(bd * HOURS_PER_DAY);
       }
       // Auto-calculate totalHrs
-      const h  = parseFloat(next[idx].hrs)       || 0;
-      const bh = parseFloat(next[idx].bufferHrs)  || 0;
+      const h = parseFloat(next[idx].hrs) || 0;
+      const bh = parseFloat(next[idx].bufferHrs) || 0;
       next[idx].totalHrs = (h + bh) > 0 ? String(h + bh) : '';
 
       return next;
@@ -183,77 +183,77 @@ const [saving, setSaving] = useState(false);
   // Totals row
   const totals = rows.reduce(
     (acc, r) => ({
-      days:       acc.days       + (parseFloat(r.days)       || 0),
-      hrs:        acc.hrs        + (parseFloat(r.hrs)        || 0),
+      days: acc.days + (parseFloat(r.days) || 0),
+      hrs: acc.hrs + (parseFloat(r.hrs) || 0),
       bufferDays: acc.bufferDays + (parseFloat(r.bufferDays) || 0),
-      bufferHrs:  acc.bufferHrs  + (parseFloat(r.bufferHrs)  || 0),
-      totalHrs:   acc.totalHrs   + (parseFloat(r.totalHrs)   || 0),
+      bufferHrs: acc.bufferHrs + (parseFloat(r.bufferHrs) || 0),
+      totalHrs: acc.totalHrs + (parseFloat(r.totalHrs) || 0),
     }),
     { days: 0, hrs: 0, bufferDays: 0, bufferHrs: 0, totalHrs: 0 }
   );
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
 
-  if (!selectedProject) {
-    alert("Please select a project");
-    return;
-  }
+    if (!selectedProject) {
+      alert("Please select a project");
+      return;
+    }
 
-  try {
+    try {
 
-    setSaving(true);
+      setSaving(true);
 
-    // await axios.post(
-    //   `${BASE_URL}/api/effort-estimates`,
-    //   {
-    //     projectId: selectedProject,
-    //     estimates: rows,
-    //   },
-    //   {
-    //     headers: getHeaders(),
-    //   }
-    // );
-await axios.post(
-  `${BASE_URL}/api/projects/${selectedProject}/effort/bulk`,
-  {
-    rows: rows.map(r => ({
-      role: r.role,
-      effort_days: r.days,
-      buffer_days: r.bufferDays,
-      units: r.units,
-      unit_label: r.unitLabel,
-    })),
-  },
-  {
-    headers: getHeaders(),
-  }
-);
-    alert("Effort estimate saved successfully");
+      // await axios.post(
+      //   `${BASE_URL}/api/effort-estimates`,
+      //   {
+      //     projectId: selectedProject,
+      //     estimates: rows,
+      //   },
+      //   {
+      //     headers: getHeaders(),
+      //   }
+      // );
+      await axios.post(
+        `${BASE_URL}/api/projects/${selectedProject}/effort/bulk`,
+        {
+          rows: rows.map(r => ({
+            role: r.role,
+            effort_days: r.days,
+            buffer_days: r.bufferDays,
+            units: r.units,
+            unit_label: r.unitLabel,
+          })),
+        },
+        {
+          headers: getHeaders(),
+        }
+      );
+      alert("Effort estimate saved successfully");
 
-    onSaved?.();
+      onSaved?.();
 
-    onClose();
+      onClose();
 
-  } catch (err) {
+    } catch (err) {
 
-    console.error(err);
+      console.error(err);
 
-    alert(
-      err?.response?.data?.message ||
-      "Failed to save estimate"
-    );
+      alert(
+        err?.response?.data?.message ||
+        "Failed to save estimate"
+      );
 
-  } finally {
+    } finally {
 
-    setSaving(false);
+      setSaving(false);
 
-  }
-};
+    }
+  };
   const handleCopy = () => {
     const header = ['Role', 'Days', 'Hrs', 'Buffer Days', 'Buffer Hrs', 'Total Hrs', 'Units'].join('\t');
-    const body   = rows.map(r =>
+    const body = rows.map(r =>
       [r.role, r.days, r.hrs, r.bufferDays, r.bufferHrs, r.totalHrs, r.units].join('\t')
     ).join('\n');
-    navigator.clipboard.writeText(`${header}\n${body}`).catch(() => {});
+    navigator.clipboard.writeText(`${header}\n${body}`).catch(() => { });
   };
 
   return (
@@ -268,30 +268,30 @@ await axios.post(
           </div>
           <button onClick={onClose} style={O.closeBtn}>✕</button>
         </div>
-{/* Project Selection */}
-<div style={{ marginBottom: 20 }}>
-  <label style={O.label}>
-    Select Project
-    <span style={{ color: '#e74c3c' }}> *</span>
-  </label>
+        {/* Project Selection */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={O.label}>
+            Select Project
+            <span style={{ color: '#e74c3c' }}> *</span>
+          </label>
 
-  <select
-    value={selectedProject}
-    onChange={(e) => setSelectedProject(e.target.value)}
-    style={O.input}
-  >
-    <option value="">Select Project</option>
+          <select
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            style={O.input}
+          >
+            <option value="">Select Project</option>
 
-    {projects.map((project) => (
-      <option
-        key={project.id}
-        value={project.id}
-      >
-        {project.project_name || project.name}
-      </option>
-    ))}
-  </select>
-</div>
+            {projects.map((project) => (
+              <option
+                key={project.id}
+                value={project.id}
+              >
+                {project.project_name || project.name}
+              </option>
+            ))}
+          </select>
+        </div>
         {/* Table */}
         <div style={{ overflowX: 'auto', marginTop: 4 }}>
           <table style={E.table}>
@@ -368,36 +368,25 @@ await axios.post(
           </table>
         </div>
 
-        {/* Footer */}
-        {/* <div style={O.footer}>
-          <button onClick={handleCopy} style={O.copyBtn}>📋 Copy to Clipboard</button>
-          <button onClick={onClose}   style={O.cancelBtn}>Close</button>
-        </div> */}
+
         <div style={O.footer}>
 
-  {/* <button
-    onClick={handleCopy}
-    style={O.copyBtn}
-  >
-     Copy to Clipboard
-  </button> */}
+          <button
+            onClick={onClose}
+            style={O.cancelBtn}
+          >
+            Close
+          </button>
 
-  <button
-    onClick={onClose}
-    style={O.cancelBtn}
-  >
-    Close
-  </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            style={O.submitBtn}
+          >
+            {saving ? "Saving..." : "Save Estimate"}
+          </button>
 
-  <button
-    onClick={handleSubmit}
-    disabled={saving}
-    style={O.submitBtn}
-  >
-    {saving ? "Saving..." : "Save Estimate"}
-  </button>
-
-</div>
+        </div>
       </div>
     </div>
   );
@@ -405,8 +394,8 @@ await axios.post(
 
 // ── Main Projects Component ───────────────────────────────────────────────────
 const Projects = () => {
-  const [projects, setProjects]               = useState([]);
-  const [loading,  setLoading]                = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEffortModal, setShowEffortModal] = useState(false);
   const fileInputRef = React.useRef(null);
@@ -449,11 +438,11 @@ const Projects = () => {
           <div style={P.underline} />
         </div>
         <div style={P.btnGroup}>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            onChange={handleTimesheetUpload} 
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleTimesheetUpload}
             accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
           />
           <button onClick={() => fileInputRef.current.click()} style={P.uploadBtn}>
@@ -480,16 +469,16 @@ const Projects = () => {
               <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr>
                   {/* {['#', 'Project Name', 'Client', 'Start Date', 'End Date', 'Status'].map(h => ( */}
-                    {[
-  '#',
-  'Project Name',
-  'Client',
-  'Start Date',
-  'End Date',
-  'Status',
-  'Effort (Days)',
-  'Effort (Hours)'
-].map(h => (
+                  {[
+                    '#',
+                    'Project Name',
+                    'Client',
+                    'Start Date',
+                    'End Date',
+                    'Status',
+                    'Effort (Days)',
+                    'Effort (Hours)'
+                  ].map(h => (
                     <th key={h} style={P.th}>{h}</th>
                   ))}
                 </tr>
@@ -503,7 +492,7 @@ const Projects = () => {
                     </td>
                     <td style={P.td}>{p.client_name || '—'}</td>
                     <td style={P.td}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
-                    <td style={P.td}>{p.end_date   ? fmtDate(p.end_date)   : '—'}</td>
+                    <td style={P.td}>{p.end_date ? fmtDate(p.end_date) : '—'}</td>
                     <td style={P.td}>
                       <span style={{
                         padding: '3px 10px', borderRadius: 12, fontSize: 11,
@@ -514,12 +503,12 @@ const Projects = () => {
                       </span>
                     </td>
                     <td style={P.td}>
-  {`${p.total_effort_days ?? 0} Days`}
-</td>
+                      {`${p.total_effort_days ?? 0} Days`}
+                    </td>
 
-<td style={P.td}>
-  {`${p.total_effort_hours ?? 0} Hrs`}
-</td>
+                    <td style={P.td}>
+                      {`${p.total_effort_hours ?? 0} Hrs`}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -539,12 +528,12 @@ const Projects = () => {
         <EffortEstimateModal onClose={() => setShowEffortModal(false)} />
       )} */}
       {showEffortModal && (
-  <EffortEstimateModal
-    projects={projects}
-    onClose={() => setShowEffortModal(false)}
-    onSaved={fetchProjects}
-  />
-)}
+        <EffortEstimateModal
+          projects={projects}
+          onClose={() => setShowEffortModal(false)}
+          onSaved={fetchProjects}
+        />
+      )}
     </div>
   );
 };
@@ -553,17 +542,17 @@ const Projects = () => {
 const fmtDate = (d) => {
   if (!d) return '—';
   const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2,'0')}-${String(dt.getMonth()+1).padStart(2,'0')}-${dt.getFullYear()}`;
+  return `${String(dt.getDate()).padStart(2, '0')}-${String(dt.getMonth() + 1).padStart(2, '0')}-${dt.getFullYear()}`;
 };
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 // Page
 const P = {
-  page:      { padding: '24px', maxWidth: 1200, margin: '0 auto', fontFamily: 'sans-serif' },
-  topBar:    { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, flexWrap: 'wrap', gap: 12 },
-  heading:   { margin: 0, color: '#1e272e', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 6 },
+  page: { padding: '24px', maxWidth: 1200, margin: '0 auto', fontFamily: 'sans-serif' },
+  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, flexWrap: 'wrap', gap: 12 },
+  heading: { margin: 0, color: '#1e272e', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 6 },
   underline: { width: 52, height: 4, background: '#e74c3c', borderRadius: 2 },
-  btnGroup:  { display: 'flex', gap: 10, alignItems: 'center' },
+  btnGroup: { display: 'flex', gap: 10, alignItems: 'center' },
   createBtn: {
     padding: '9px 20px', background: '#e74c3c', color: '#fff',
     border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700,
@@ -583,11 +572,11 @@ const P = {
     boxShadow: '0 2px 8px rgba(52,152,219,0.3)',
   },
   tableWrap: { background: '#fff', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', overflow: 'hidden', border: '1px solid #f0f0f0' },
-  table:     { width: '100%', borderCollapse: 'collapse' },
-  th:        { background: '#1e272e', color: '#fff', padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' },
-  tr:        { borderBottom: '1px solid #f0f0f0' },
-  td:        { padding: '13px 16px', fontSize: 13, color: '#444' },
-  msg:       { padding: 48, textAlign: 'center', color: '#bbb', fontSize: 15, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { background: '#1e272e', color: '#fff', padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' },
+  tr: { borderBottom: '1px solid #f0f0f0' },
+  td: { padding: '13px 16px', fontSize: 13, color: '#444' },
+  msg: { padding: 48, textAlign: 'center', color: '#bbb', fontSize: 15, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
 };
 
 // Overlay / Modal shared
@@ -610,9 +599,9 @@ const O = {
     alignItems: 'flex-start', marginBottom: 20,
     paddingBottom: 16, borderBottom: '1px solid #f0f0f0',
   },
-  title:   { fontSize: 18, fontWeight: 800, color: '#1e272e', marginBottom: 3 },
-  sub:     { fontSize: 12, color: '#999' },
-  closeBtn:{
+  title: { fontSize: 18, fontWeight: 800, color: '#1e272e', marginBottom: 3 },
+  sub: { fontSize: 12, color: '#999' },
+  closeBtn: {
     background: 'none', border: 'none', fontSize: 17,
     cursor: 'pointer', color: '#bbb', padding: '0 4px', lineHeight: 1,
   },
@@ -627,7 +616,7 @@ const O = {
     fontSize: 13, boxSizing: 'border-box', outline: 'none',
     transition: 'border-color 0.15s',
   },
-  error:  { color: '#e74c3c', fontSize: 12, margin: '0 0 10px', fontWeight: 600 },
+  error: { color: '#e74c3c', fontSize: 12, margin: '0 0 10px', fontWeight: 600 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20, paddingTop: 14, borderTop: '1px solid #f0f0f0' },
   cancelBtn: {
     padding: '8px 20px', background: '#f0f0f0', color: '#555',
@@ -645,12 +634,12 @@ const O = {
 
 // Effort table
 const E = {
-  table:    { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th:       { padding: '9px 10px', background: '#1e272e', color: '#fff', fontWeight: 600, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap' },
-  thCalc:   { padding: '9px 10px', background: '#2c3e50', color: '#ccc', fontWeight: 600, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap' },
-  tdRole:   { padding: '8px 12px', color: '#1e272e', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' },
-  td:       { padding: '6px 8px', textAlign: 'center' },
-  tdCalc:   { padding: '8px 10px', textAlign: 'center', color: '#666', background: '#fafafa', fontSize: 12 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  th: { padding: '9px 10px', background: '#1e272e', color: '#fff', fontWeight: 600, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap' },
+  thCalc: { padding: '9px 10px', background: '#2c3e50', color: '#ccc', fontWeight: 600, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap' },
+  tdRole: { padding: '8px 12px', color: '#1e272e', fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap' },
+  td: { padding: '6px 8px', textAlign: 'center' },
+  tdCalc: { padding: '8px 10px', textAlign: 'center', color: '#666', background: '#fafafa', fontSize: 12 },
   numInput: {
     width: 70, padding: '5px 7px', border: '1px solid #ddd',
     borderRadius: 5, fontSize: 12, textAlign: 'center',

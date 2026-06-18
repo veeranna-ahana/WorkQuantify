@@ -126,28 +126,7 @@ const handleUpdate = async () => {
     fetchProjects();
   }, []);
 
-  // 🔹 Fetch Tasks when project changes
-  // useEffect(() => {
-  //   if (!selectedProject) {
-  //     setTasks([]);
-  //     return;
-  //   }
-
-  //   const fetchTasks = async () => {
-  //     try {
-  //       const res = await axios.get(
-  //         `${BASE_URL}/api/tasks?projectId=${selectedProject}`,
-  //         { headers: getAuthHeaders() }
-  //       );
-  //       setTasks(res.data || []);
-  //     } catch (err) {
-  //       console.error(err);
-  //       setTasks([]);
-  //     }
-  //   };
-
-  //   fetchTasks();
-  // }, [selectedProject]);
+  
 
   useEffect(() => {
     if (!selectedRole) {
@@ -372,166 +351,147 @@ console.log("updates",updates);
                   <th style={thStyle}>Action</th>
                 </tr>
               </thead>
-              {/* <tbody>
+              <tbody>
                 {updates.map((u) => (
                   <tr key={u.id}>
-                    <td style={tdStyle}>{u.id}</td>
-                    <td style={tdStyle}>{u.task_id}</td>
-                    <td style={tdStyle}>{formatDate(u.date)}</td>
-                    <td style={tdStyle}>{u.units_completed}</td>
-                    <td style={tdStyle}>{u.hours_spent}</td>
                     <td style={tdStyle}>
-                      <button
-                        onClick={() => handleDelete(u.id)}
-                        style={deleteButtonStyle}
-                      >
-                        Delete Update
-                      </button>
+                      {editId === u.id ? (
+                        <input
+                          // value={editData.project_id}
+                          value={editData.project_name}
+                          onChange={(e) =>
+                            setEditData({ ...editData, project_name: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.project_name
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          value={editData.role}
+                          onChange={(e) =>
+                            setEditData({ ...editData, role: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.role
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          value={editData.task_name}
+                          onChange={(e) =>
+                            setEditData({ ...editData, task_name: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.task_name
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          type="date"
+                          value={editData.date?.split("T")[0]}
+                          onChange={(e) =>
+                            setEditData({ ...editData, date: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        formatDate(u.date)
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          type="number"
+                          value={editData.units_completed}
+                          onChange={(e) =>
+                            setEditData({ ...editData, units_completed: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.units_completed
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          type="number"
+                          value={editData.hours_spent}
+                          onChange={(e) =>
+                            setEditData({ ...editData, hours_spent: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.hours_spent
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <input
+                          value={editData.remarks || ""}
+                          onChange={(e) =>
+                            setEditData({ ...editData, remarks: e.target.value })
+                          }
+                          style={inputStyle}
+                        />
+                      ) : (
+                        u.remarks
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {editId === u.id ? (
+                        <>
+                          <button
+                            onClick={handleUpdate}
+                            style={{ ...deleteButtonStyle, backgroundColor: "#28a745" }}
+                          >
+                            Update
+                          </button>
+                          <button
+                            onClick={() => setEditId(null)}
+                            style={{ ...deleteButtonStyle, marginLeft: "5px" }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEdit(u)}
+                            style={{ ...deleteButtonStyle, backgroundColor: "#007bff" }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u.id)}
+                            style={{ ...deleteButtonStyle, marginLeft: "5px" }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
-              </tbody> */}
-              <tbody>
-  {updates.map((u) => (
-    <tr key={u.id}>
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            // value={editData.project_id}
-            value={editData.project_name}
-            onChange={(e) =>
-              setEditData({ ...editData, project_name: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.project_name
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            value={editData.role}
-            onChange={(e) =>
-              setEditData({ ...editData, role: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.role
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            value={editData.task_name}
-            onChange={(e) =>
-              setEditData({ ...editData, task_name: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.task_name
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            type="date"
-            value={editData.date?.split("T")[0]}
-            onChange={(e) =>
-              setEditData({ ...editData, date: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          formatDate(u.date)
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            type="number"
-            value={editData.units_completed}
-            onChange={(e) =>
-              setEditData({ ...editData, units_completed: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.units_completed
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            type="number"
-            value={editData.hours_spent}
-            onChange={(e) =>
-              setEditData({ ...editData, hours_spent: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.hours_spent
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <input
-            value={editData.remarks || ""}
-            onChange={(e) =>
-              setEditData({ ...editData, remarks: e.target.value })
-            }
-            style={inputStyle}
-          />
-        ) : (
-          u.remarks
-        )}
-      </td>
-
-      <td style={tdStyle}>
-        {editId === u.id ? (
-          <>
-            <button
-              onClick={handleUpdate}
-              style={{ ...deleteButtonStyle, backgroundColor: "#28a745" }}
-            >
-              Update
-            </button>
-            <button
-              onClick={() => setEditId(null)}
-              style={{ ...deleteButtonStyle, marginLeft: "5px" }}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => handleEdit(u)}
-              style={{ ...deleteButtonStyle, backgroundColor: "#007bff" }}
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => handleDelete(u.id)}
-              style={{ ...deleteButtonStyle, marginLeft: "5px" }}
-            >
-              Delete
-            </button>
-          </>
-        )}
-      </td>
-    </tr>
-  ))}
-</tbody>
+              </tbody>
 
             </table>
           </div>

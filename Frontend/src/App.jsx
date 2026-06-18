@@ -14,6 +14,7 @@ import MyWork from './pages/MyWork';
 import UtilizationDashboard from './pages/UtilizationDashboard';
 import Approvals from './pages/Approvals';                        // ← NEW
 import Reconciliation from './pages/Reconciliation/Reconciliation';
+import DailyUpdatesReport from './pages/DailyUpdatesReport';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="assignments"  element={<AssignmentScreen />} />
           <Route path="my-work"      element={<MyWork />} />
           <Route path="utilization"  element={<UtilizationDashboard />} />
+          <Route path="dailyreport"  element={<DailyUpdatesReport />} />
           <Route path="approvals"    element={<Approvals />} />   {/* ← NEW ADMIN */}
           <Route path="/reconciliation" element={<Reconciliation />} />
         </Route>
