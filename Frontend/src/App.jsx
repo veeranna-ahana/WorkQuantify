@@ -13,6 +13,7 @@ import AssignmentScreen from './pages/Assignment';
 import MyWork from './pages/MyWork';
 import UtilizationDashboard from './pages/UtilizationDashboard';
 import Approvals from './pages/Approvals';                        // ← NEW
+import ReconPage from './pages/Recon';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
           <Route path="my-work"      element={<MyWork />} />
           <Route path="utilization"  element={<UtilizationDashboard />} />
           <Route path="approvals"    element={<Approvals />} />   {/* ← NEW ADMIN */}
+          <Route path="recon"        element={<ReconPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" />} />

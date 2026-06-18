@@ -18,6 +18,7 @@ const Icons = {
   dailyUpdate: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
   myWork:      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
   approvals:   "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",  // ← NEW
+  recon:       "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-15v5l3 3",
   logout:      "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   chevronLeft: "M15 18l-6-6 6-6",
   chevronRight:"M9 18l6-6-6-6",
@@ -29,6 +30,7 @@ const ADMIN_LINKS = [
   { to: "/projects", label: "Projects", icon: "projects" },
   { to: "/assignments", label: "Assignments", icon: "assignments" },
   { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW
+  { to: "/recon",       label: "Reconciliation", icon: "recon" },
 ];
 
 const EMP_LINKS = [
