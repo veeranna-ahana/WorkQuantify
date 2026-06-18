@@ -27,6 +27,7 @@ const Icons = {
 const ADMIN_LINKS = [
 
   { to: "/utilization", label: "Utilization", icon: "utilization" },
+  { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
   { to: "/projects", label: "Projects", icon: "projects" },
   { to: "/assignments", label: "Assignments", icon: "assignments" },
   { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW

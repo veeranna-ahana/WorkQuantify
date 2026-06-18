@@ -1,6 +1,6 @@
 const { query } = require("../config/db");
 
-// POST /api/daily-updates
+//POST/api/daily-updates
 const addDailyUpdate = async (req, res, next) => {
   try {
     const {
@@ -63,7 +63,7 @@ const addDailyUpdate = async (req, res, next) => {
   }
 };
 
-// GET /api/daily-updates?userId=
+// GET/api/daily-updates?userId=
 const getDailyUpdatesByUserId = async (req, res, next) => {
   try {
     const { userId } = req.query;
@@ -188,10 +188,121 @@ const deleteDailyUpdate = async (req, res, next) => {
   }
 };
 
+// GET /api/daily-updates/meta — fetch distinct dates, employee list and project list for filters
+async function getMeta(req, res) {
+  try {
+    const dates = await query(`
+      SELECT DISTINCT date
+      FROM assignment_progress
+      WHERE date IS NOT NULL
+      ORDER BY date DESC
+    `);
+
+    const employees = await query(`
+      SELECT id, name
+      FROM users
+      ORDER BY name
+    `);
+
+    const projects = await query(`
+      SELECT id, project_name
+      FROM projects
+      ORDER BY project_name
+    `);
+
+    res.status(200).json({
+      dates: dates.map(d => d.date),
+      employees,
+      projects
+    });
+
+  } catch (err) {
+    console.error("getMeta error:", err);
+    res.status(500).json({
+      error: "Failed to load filter options"
+    });
+  }
+}
+
+// GET /api/daily-updates/report?date=&project_id=&user_id= — fetch updates for given date with optional filters
+async function getDailyUpdates(req, res) {
+  const { date, project_id, user_id } = req.query;
+
+  const conditions = [];
+  const params = [];
+
+  if (date) {
+    conditions.push("ap.date = ?");
+    params.push(date);
+  }
+
+  if (project_id) {
+    conditions.push("ap.project_id = ?");
+    params.push(project_id);
+  }
+
+  if (user_id) {
+    conditions.push("ap.user_id = ?");
+    params.push(user_id);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  const sql = `
+    SELECT
+      ap.id,
+      ap.date,
+      ap.user_id,
+      u.name AS employee_name,
+
+      ap.project_id,
+      p.project_name,
+
+      ap.role,
+      ap.task_name,
+
+      ap.status AS working_status,
+
+      ap.units_completed,
+      ap.total_time_needed,
+
+      ap.yesterdays_tasks AS done_yesterday,
+      ap.todays_tasks,
+
+      ap.risks,
+
+      ap.remarks
+
+    FROM assignment_progress ap
+
+    LEFT JOIN users u
+      ON u.id = ap.user_id
+
+    LEFT JOIN projects p
+      ON p.id = ap.project_id
+
+    ${whereClause}
+
+    ORDER BY u.name, p.project_name, ap.task_name
+  `;
+
+  try {
+    const rows = await query(sql, params);
+    res.status(200).json(rows);
+  } catch (err) {
+    console.error("getDailyUpdates error:", err);
+    res.status(500).json({
+      error: "Failed to load daily updates"
+    });
+  }
+}
 module.exports = {
   addDailyUpdate,
   getDailyUpdatesByUserId,
   getAllDailyUpdates,
   updateDailyUpdate,
   deleteDailyUpdate,
+  getMeta, getDailyUpdates
 };

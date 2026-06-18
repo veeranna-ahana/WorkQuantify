@@ -51,6 +51,8 @@ const getTaskLoads = async (req, res, next) => {
       ptl.role,
       ptl.task_name,
       ptl.planned_units,
+      ptl.estimated_days,
+      ptl.estimated_hours,
 
       ee.effort_days,
       ee.effort_hrs,
@@ -133,20 +135,45 @@ const bulkUpsertTaskLoads = async (req, res, next) => {
     }
 
     for (const load of loads) {
-      await query(
-        `INSERT INTO project_task_loads
-         (project_id, role, task_name, planned_units)
-         VALUES (?, ?, ?, ?)
+      // await query(
+      //   `INSERT INTO project_task_loads
+      //    (project_id, role, task_name, planned_units)
+      //    VALUES (?, ?, ?, ?)
 
-         ON DUPLICATE KEY UPDATE
-         planned_units = VALUES(planned_units)`,
-        [
-          project_id,
-          load.role,
-          load.task_name,
-          load.planned_units || 0
-        ]
-      );
+      //    ON DUPLICATE KEY UPDATE
+      //    planned_units = VALUES(planned_units)`,
+      //   [
+      //     project_id,
+      //     load.role,
+      //     load.task_name,
+      //     load.planned_units || 0
+      //   ]
+      // );
+    await query(
+  `INSERT INTO project_task_loads
+   (
+     project_id,
+     role,
+     task_name,
+     planned_units,
+     estimated_days,
+     estimated_hours
+   )
+   VALUES (?, ?, ?, ?, ?, ?)
+
+   ON DUPLICATE KEY UPDATE
+   planned_units   = VALUES(planned_units),
+   estimated_days = VALUES(estimated_days),
+   estimated_hours = VALUES(estimated_hours)`,
+  [
+    project_id,
+    load.role,
+    load.task_name,
+    load.planned_units || 0,
+    load.estimated_days || 0,
+    load.estimated_hours || 0
+  ]
+);
     }
 
     const rows = await query(
