@@ -1002,7 +1002,7 @@ const AssignmentScreen = () => {
   // ── Derived ───────────────────────────────────────────────────────────────
   const summaryByKey = {};
   (summary.rows || []).forEach(r => { summaryByKey[`${r.role}||${r.task_name}`] = r; });
-  const { total_planned = 0, total_assigned = 0, total_completed = 0 } = summary.totals || {};
+  const { total_planned = 0,   total_effort_days = 0,total_effort_hours = 0,total_assigned = 0, total_completed = 0 } = summary.totals || {};
 
   return (
     <div style={S.page}>
@@ -1023,8 +1023,8 @@ const AssignmentScreen = () => {
           {selProject && (
             <div style={S.kpiStrip}>
               <KPI label="Total Effort" value={total_planned}  color="#9b59b6" />
-              <KPI label="Total Days" value={total_planned}  color="#9b59b6" />
-              <KPI label="Total Hours" value={total_planned}  color="#9b59b6" />
+              <KPI label="Total Days" value={total_effort_days}  color="#9b59b6" />
+              <KPI label="Total Hours" value={total_effort_hours}  color="#9b59b6" />
               <KPI label="Assigned"     value={total_assigned}  color="#3498db" />
               <KPI label="Completed"    value={total_completed} color="#27ae60" />
               <KPI label="Pending"      value={Math.max(total_assigned - total_completed, 0)} color="#e74c3c" />
