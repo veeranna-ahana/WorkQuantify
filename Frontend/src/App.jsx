@@ -13,7 +13,7 @@ import AssignmentScreen from './pages/Assignment';
 import MyWork from './pages/MyWork';
 import UtilizationDashboard from './pages/UtilizationDashboard';
 import Approvals from './pages/Approvals';                        // ← NEW
-import Reconciliation from './pages/Reconciliation/Reconciliation';
+import ReconPage from './pages/Recon';
 import DailyUpdatesReport from './pages/DailyUpdatesReport';
 
 function App() {
@@ -30,17 +30,16 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="dashboard"    element={<Dashboard />} />
-          <Route path="projects"     element={<Projects />} />
-          <Route path="users"        element={<Users />} />
-          <Route path="tasks"        element={<Tasks />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="users" element={<Users />} />
+          <Route path="tasks" element={<Tasks />} />
           <Route path="daily-update" element={<DailyUpdates />} />
-          <Route path="assignments"  element={<AssignmentScreen />} />
-          <Route path="my-work"      element={<MyWork />} />
-          <Route path="utilization"  element={<UtilizationDashboard />} />
-          <Route path="dailyreport"  element={<DailyUpdatesReport />} />
-          <Route path="approvals"    element={<Approvals />} />   {/* ← NEW ADMIN */}
-          <Route path="/reconciliation" element={<Reconciliation />} />
+          <Route path="assignments" element={<AssignmentScreen />} />
+          <Route path="my-work" element={<MyWork />} />
+          <Route path="utilization" element={<UtilizationDashboard />} />
+          <Route path="approvals" element={<Approvals />} />   {/* ← NEW ADMIN */}
+          <Route path="recon" element={<ReconPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" />} />

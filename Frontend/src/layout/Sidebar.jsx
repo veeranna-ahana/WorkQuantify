@@ -11,17 +11,17 @@ const Icon = ({ d, size = 18 }) => (
 );
 
 const Icons = {
-  dashboard:   "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
-  projects:    "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
+  dashboard: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10",
+  projects: "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
   assignments: "M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7",
   utilization: "M18 20V10 M12 20V4 M6 20v-6",
   dailyUpdate: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
-  myWork:      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
-  approvals:   "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",  // ← NEW
-  logout:      "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
+  myWork: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  approvals: "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",  // ← NEW
+  recon: "M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-15v5l3 3",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   chevronLeft: "M15 18l-6-6 6-6",
-  chevronRight:"M9 18l6-6-6-6",
-  reconciliation: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  chevronRight: "M9 18l6-6-6-6",
 };
 
 const ADMIN_LINKS = [
@@ -30,8 +30,8 @@ const ADMIN_LINKS = [
   { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
   { to: "/projects", label: "Projects", icon: "projects" },
   { to: "/assignments", label: "Assignments", icon: "assignments" },
-  { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW
-  { to: "/reconciliation", label: "Reconciliation", icon: "reconciliation" },
+  { to: "/approvals", label: "Approvals", icon: "approvals" },  // ← NEW
+  { to: "/recon", label: "Reconciliation", icon: "recon" },
 ];
 
 const EMP_LINKS = [
@@ -40,9 +40,9 @@ const EMP_LINKS = [
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Sidebar = () => {
-  const navigate    = useNavigate();
-  const role        = localStorage.getItem("role");
-  const userName    = localStorage.getItem("userName") || "User";
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role");
+  const userName = localStorage.getItem("userName") || "User";
   const [collapsed, setCollapsed] = useState(false);
 
   const links = role === "ADMIN" ? ADMIN_LINKS : EMP_LINKS;
@@ -133,9 +133,9 @@ const S = {
     padding: "18px 14px 14px",
     borderBottom: "1px solid rgba(255,255,255,0.07)", minHeight: "64px",
   },
-  brandName:  { fontSize: "15px", fontWeight: "800", color: "white", letterSpacing: "-0.3px", whiteSpace: "nowrap" },
-  brandIcon:  { fontSize: "13px", fontWeight: "800", color: "white", margin: "0 auto" },
-  collapseBtn:{
+  brandName: { fontSize: "15px", fontWeight: "800", color: "white", letterSpacing: "-0.3px", whiteSpace: "nowrap" },
+  brandIcon: { fontSize: "13px", fontWeight: "800", color: "white", margin: "0 auto" },
+  collapseBtn: {
     background: "rgba(255,255,255,0.08)", border: "none", color: "#bbb",
     cursor: "pointer", borderRadius: "6px", padding: "5px 7px",
     display: "flex", alignItems: "center", flexShrink: 0, transition: "background 0.15s",
@@ -151,7 +151,7 @@ const S = {
     transition: "background 0.15s, color 0.15s", whiteSpace: "nowrap",
   },
   linkActive: { background: "rgba(231,76,60,0.18)", color: "#ff6b6b", fontWeight: "700" },
-  linkLabel:  { overflow: "hidden", textOverflow: "ellipsis" },
+  linkLabel: { overflow: "hidden", textOverflow: "ellipsis" },
   footer: {
     padding: "10px 8px 14px",
     borderTop: "1px solid rgba(255,255,255,0.07)",
@@ -167,9 +167,9 @@ const S = {
     background: "#e74c3c", display: "flex", alignItems: "center",
     justifyContent: "center", fontSize: "13px", fontWeight: "800", flexShrink: 0,
   },
-  userInfo:  { overflow: "hidden" },
-  userName:  { fontSize: "13px", fontWeight: "600", color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  userRole:  { fontSize: "10px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" },
+  userInfo: { overflow: "hidden" },
+  userName: { fontSize: "13px", fontWeight: "600", color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  userRole: { fontSize: "10px", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" },
   logoutBtn: {
     display: "flex", alignItems: "center", width: "100%",
     background: "transparent", border: "none",
