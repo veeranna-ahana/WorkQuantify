@@ -8,7 +8,8 @@ const {
   getDailyUpdatesByUserId,
   getAllDailyUpdates,
   updateDailyUpdate,
-  deleteDailyUpdate
+  deleteDailyUpdate,
+  getMeta, getDailyUpdates
 } = require('../controller/dailyUpdate.controller');
 
 // POST / — add daily update (any authenticated user)
@@ -28,5 +29,10 @@ router.put('/:id', authMiddleware, updateDailyUpdate);
 
 // DELETE /:id — delete a daily update
 router.delete('/:id', authMiddleware, deleteDailyUpdate);
+
+//daily report meta data
+ 
+router.get('/meta', getMeta);
+router.get('/report', getDailyUpdates);
 
 module.exports = router;
