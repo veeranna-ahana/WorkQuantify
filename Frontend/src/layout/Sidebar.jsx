@@ -1,5 +1,8 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useSelector } from "react-redux";
+import Cookies from "js-cookie";
+import { useEffect } from "react";
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 const Icon = ({ d, size = 18 }) => (
@@ -17,43 +20,73 @@ const Icons = {
   utilization: "M18 20V10 M12 20V4 M6 20v-6",
   dailyUpdate: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
   myWork:      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
-  approvals:   "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",  // ← NEW
+  approvals:   "M9 12l2 2 4-4 M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",
   logout:      "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
   chevronLeft: "M15 18l-6-6 6-6",
   chevronRight:"M9 18l6-6-6-6",
   reconciliation: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
 };
 
-const ADMIN_LINKS = [
+// Role-based navigation links
+const ROLE_LINKS = {
+  Manager: [
+    { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
+    { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
+    { to: "/projects", label: "Projects", icon: "projects" },
+    { to: "/assignments", label: "Assignments", icon: "assignments" },
+    { to: "/approvals", label: "Approvals", icon: "approvals" },
+  ],
+  Admin: [
+    { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
+    { to: "/reconciliation", label: "Reconciliation", icon: "reconciliation" },
+  ],
+  Employee: [
+    { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
+    { to: "/my-work", label: "My Work", icon: "myWork" },
+  ],
+};
 
-  { to: "/utilization", label: "Utilization", icon: "utilization" },
-  { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
-  { to: "/projects", label: "Projects", icon: "projects" },
-  { to: "/assignments", label: "Assignments", icon: "assignments" },
-  { to: "/approvals",   label: "Approvals",   icon: "approvals"   },  // ← NEW
-  { to: "/reconciliation", label: "Reconciliation", icon: "reconciliation" },
-];
-
-const EMP_LINKS = [
-  { to: "/my-work", label: "My Work", icon: "myWork" },
-];
+// Fallback for old "ADMIN" role (backward compatibility)
+const ADMIN_LINKS = ROLE_LINKS.Manager;
+const EMP_LINKS = ROLE_LINKS.Employee;
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Sidebar = () => {
-  const navigate    = useNavigate();
-  const role        = localStorage.getItem("role");
-  const userName    = localStorage.getItem("userName") || "User";
+  const navigate = useNavigate();
+  const reduxUser = useSelector((state) => state.auth?.user);
   const [collapsed, setCollapsed] = useState(false);
 
-  const links = role === "ADMIN" ? ADMIN_LINKS : EMP_LINKS;
+  // Get user data from Redux or cookies (fallback)
+  let user = reduxUser;
+  if (!user) {
+    try {
+      const cookieUser = Cookies.get("user");
+      user = cookieUser ? JSON.parse(cookieUser) : null;
+    } catch (err) {
+      user = null;
+    }
+  }
+
+  const userName = user?.emp_name || localStorage.getItem("userName") || "User";
+  const userRole = user?.role || localStorage.getItem("role") || "Employee";
+
+  // Get links based on user role from RBAC
+  const links = ROLE_LINKS[userRole] || ROLE_LINKS.Employee;
+
+  console.log("🔑 Sidebar - User Role:", userRole, "| Available Links:", links.length);
 
   const handleLogout = () => {
+
+    Cookies.remove("user");
     localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("UserID");
-    localStorage.removeItem("userName");
-    navigate("/login");
+    localStorage.removeItem("email");
+    localStorage.removeItem("emp_id");
+
+    window.close();
+
   };
+
+ 
 
   return (
     <div style={{ ...S.sidebar, width: collapsed ? "64px" : "220px" }}>
@@ -94,16 +127,16 @@ const Sidebar = () => {
 
       {/* Footer: user + logout */}
       <div style={S.footer}>
-        {!collapsed && (
+        {/* {!collapsed && (
           <div style={S.userChip}>
             <div style={S.avatar}>{userName.charAt(0).toUpperCase()}</div>
             <div style={S.userInfo}>
               <div style={S.userName}>{userName}</div>
-              <div style={S.userRole}>{role}</div>
+              <div style={S.userRole}>{userRole}</div>
             </div>
           </div>
-        )}
-        <button
+        )} */}
+        {/* <button
           onClick={handleLogout}
           style={{
             ...S.logoutBtn,
@@ -114,7 +147,7 @@ const Sidebar = () => {
         >
           <Icon d={Icons.logout} size={16} />
           {!collapsed && <span style={{ marginLeft: "10px" }}>Sign Out</span>}
-        </button>
+        </button> */}
       </div>
     </div>
   );

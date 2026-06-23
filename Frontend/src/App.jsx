@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Cookies from 'js-cookie';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import ProtectedRoute from './component/ProtectedRoute';
+// import ProtectedRoute from './component/ProtectedRoute';
 import MainLayout from './layout/MainLayout';
 import './App.css';
 import Users from './pages/Users';
@@ -17,19 +18,15 @@ import Reconciliation from './pages/Reconciliation/Reconciliation';
 import DailyUpdatesReport from './pages/DailyUpdatesReport';
 
 function App() {
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        {/* Login Route */}
+        <Route path="/quantification" element={<Login />} />
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
+        {/* Protected Routes with MainLayout */}
+        <Route path="/" element={<MainLayout />}>
           <Route path="dashboard"    element={<Dashboard />} />
           <Route path="projects"     element={<Projects />} />
           <Route path="users"        element={<Users />} />
@@ -37,12 +34,13 @@ function App() {
           <Route path="daily-update" element={<DailyUpdates />} />
           <Route path="assignments"  element={<AssignmentScreen />} />
           <Route path="my-work"      element={<MyWork />} />
-          <Route path="utilization"  element={<UtilizationDashboard />} />
+          <Route path="quantificationnew"  element={<UtilizationDashboard />} />
           <Route path="dailyreport"  element={<DailyUpdatesReport />} />
-          <Route path="approvals"    element={<Approvals />} />   {/* ← NEW ADMIN */}
-          <Route path="/reconciliation" element={<Reconciliation />} />
+          <Route path="approvals"    element={<Approvals />} />
+          <Route path="reconciliation" element={<Reconciliation />} />
         </Route>
 
+        {/* Default redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>

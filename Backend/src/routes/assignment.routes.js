@@ -19,20 +19,20 @@ const {
 router.get ('/catalog',                   authMiddleware,            getCatalog);
 
 // Effort estimates — fetch from effort_estimates table
-router.get ('/effort-estimates/:projectId', authMiddleware, adminOnly, getEffortEstimates);
+router.get ('/effort-estimates/:projectId', authMiddleware, getEffortEstimates);
 
 // Task loads — admin only
-router.get ('/task-loads/:projectId',     authMiddleware, adminOnly, getTaskLoads);
-router.post('/task-loads/bulk',           authMiddleware, adminOnly, bulkUpsertTaskLoads);
-router.post('/task-loads',               authMiddleware, adminOnly, upsertTaskLoad);
+router.get ('/task-loads/:projectId',     authMiddleware, getTaskLoads);
+router.post('/task-loads/bulk',           authMiddleware, bulkUpsertTaskLoads);
+router.post('/task-loads',               authMiddleware, upsertTaskLoad);
 
 // Summary
-router.get ('/summary/:projectId',        authMiddleware, adminOnly, getProjectSummary);
+router.get ('/summary/:projectId',        authMiddleware, getProjectSummary);
 
 // Assignments CRUD
-router.get   ('/',    authMiddleware, adminOnly, getAssignmentsByProject);
-router.post  ('/',    authMiddleware, adminOnly, addAssignment);
-router.put   ('/:id', authMiddleware, adminOnly, updateAssignment);
-router.delete('/:id', authMiddleware, adminOnly, deleteAssignment);
+router.get   ('/',    authMiddleware, getAssignmentsByProject);
+router.post  ('/',    authMiddleware, addAssignment);
+router.put   ('/:id', authMiddleware, updateAssignment);
+router.delete('/:id', authMiddleware, deleteAssignment);
 
 module.exports = router;

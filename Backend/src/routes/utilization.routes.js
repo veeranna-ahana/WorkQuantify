@@ -14,17 +14,17 @@ const {
 } = require('../controller/utilization.controller');
 
 // ── Employee routes ────────────────────────────────────────────────────────
-router.get ('/my-assignments',         authMiddleware,            getMyAssignments);
-router.post('/log-progress',           authMiddleware,            logProgress);
+router.get ('/my-assignments',         authMiddleware, getMyAssignments);
+router.post('/log-progress',           authMiddleware, logProgress);
 
 // ── Admin approval routes ──────────────────────────────────────────────────
-router.get ('/pending-approvals',      authMiddleware, adminOnly, getPendingApprovals);
-router.put ('/approve/:progressId',    authMiddleware, adminOnly, approveProgress);
-router.put ('/reject/:progressId',     authMiddleware, adminOnly, rejectProgress);
+router.get ('/pending-approvals',      authMiddleware, getPendingApprovals);
+router.put ('/approve/:progressId',    authMiddleware, approveProgress);
+router.put ('/reject/:progressId',     authMiddleware, rejectProgress);
 
 // ── Admin analytics routes ─────────────────────────────────────────────────
-router.get ('/overall',                authMiddleware, adminOnly, getOverallUtilization);
-router.get ('/by-project',             authMiddleware, adminOnly, getProjectUtilization);
-router.get ('/project-health',         authMiddleware, adminOnly, getProjectHealth);
+router.get ('/overall',                authMiddleware, getOverallUtilization);
+router.get ('/by-project',             authMiddleware, getProjectUtilization);
+router.get ('/project-health',         authMiddleware, getProjectHealth);
 
 module.exports = router;
