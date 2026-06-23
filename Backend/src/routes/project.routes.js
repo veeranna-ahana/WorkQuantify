@@ -11,20 +11,18 @@ const {
 } = require('../controller/project.controller');
 
 // ── Project CRUD ──────────────────────────────────────────────
-// POST /api/projects          — create project  (admin only)
-router.post('/', authMiddleware, adminOnly, createProject);
+router.post('/', authMiddleware,  createProject);
 
-// GET  /api/projects          — list all projects (any auth user)
 router.get('/',  authMiddleware, getAllProjects);
 
 // ── Effort Estimate ───────────────────────────────────────────
 // GET    /api/projects/:projectId/effort       — fetch estimate for project
-router.get   ('/:projectId/effort', authMiddleware, adminOnly, getEffortEstimate);
+router.get   ('/:projectId/effort', authMiddleware,  getEffortEstimate);
 
 // POST   /api/projects/:projectId/effort/bulk  — upsert all rows at once
-router.post  ('/:projectId/effort/bulk', authMiddleware, adminOnly, upsertEffortEstimate);
+router.post  ('/:projectId/effort/bulk', authMiddleware,  upsertEffortEstimate);
 
 // DELETE /api/projects/:projectId/effort       — reset / clear estimate
-router.delete('/:projectId/effort', authMiddleware, adminOnly, deleteEffortEstimate);
+router.delete('/:projectId/effort', authMiddleware,  deleteEffortEstimate);
 
 module.exports = router;

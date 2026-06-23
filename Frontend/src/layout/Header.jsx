@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
-
+import Cookies from "js-cookie";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const getHeaders = () => ({
@@ -33,6 +35,37 @@ const typeColor = { assignment_created: "#3498db", progress_logged: "#2ecc71", i
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Header = () => {
+
+  const navigate = useNavigate();
+const reduxUser = useSelector((state) => state.auth?.user);
+
+// Get user from Redux or Cookie
+let user = reduxUser;
+
+if (!user) {
+  try {
+    const cookieUser = Cookies.get("user");
+    user = cookieUser ? JSON.parse(cookieUser) : null;
+  } catch (err) {
+    user = null;
+  }
+}
+
+const uName =
+  user?.emp_name || localStorage.getItem("userName") || "User";
+
+const uRole =
+  user?.role || localStorage.getItem("role") || "Employee";
+
+const handleLogout = () => {
+  Cookies.remove("user");
+  localStorage.removeItem("token");
+  localStorage.removeItem("email");
+  localStorage.removeItem("emp_id");
+
+  window.close();
+};
+
   const [notifications, setNotifications] = useState([]);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [open,          setOpen]          = useState(false);
@@ -100,69 +133,56 @@ const Header = () => {
     } catch (_) {}
   };
 
+  const Icon = ({ d, size = 18 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d={d} />
+  </svg>
+);
+
+const Icons = {
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9",
+};
+  
   return (
     <header style={S.header}>
       {/* Left: page context */}
       <div style={S.left}>
         {/* <span style={S.appName}>WorkQuantify</span> */}
-        <span style={S.roleTag}>{role}</span>
+        {/* <span style={S.roleTag}>{role}</span> */}
       </div>
 
       {/* Right: user + bell */}
-      <div style={S.right}>
-        <span style={S.userName}>{userName}</span>
+     <div style={S.right}>
+  <div style={S.userChip}>
+    <div style={S.avatar}>
+      {uName.charAt(0).toUpperCase()}
+    </div>
 
-        {/* Bell */}
-        <div ref={dropdownRef} style={{ position: "relative" }}>
-          <button onClick={handleOpen} style={S.bellBtn} title="Notifications">
-            <BellIcon />
-            {unreadCount > 0 && (
-              <span style={S.badge}>{unreadCount > 99 ? "99+" : unreadCount}</span>
-            )}
-          </button>
+    <div style={S.userInfo}>
+      <div style={S.userName}>{uName}</div>
+      <div style={S.userRole}>{uRole}</div>
+    </div>
+  </div>
 
-          {/* Dropdown */}
-          {open && (
-            <div style={S.dropdown}>
-              <div style={S.dropHeader}>
-                <span style={S.dropTitle}>
-                  Notifications {unreadCount > 0 && <span style={S.unreadLabel}>{unreadCount} new</span>}
-                </span>
-                {unreadCount > 0 && (
-                  <button onClick={markAllRead} style={S.markAllBtn}>Mark all read</button>
-                )}
-              </div>
+  <button
+    onClick={handleLogout}
+    style={S.logoutBtn}
+    title="Sign Out"
+  >
+        ⏻
+  </button>
 
-              <div style={S.dropList}>
-                {loading && (
-                  <div style={S.emptyMsg}>Loading…</div>
-                )}
-                {!loading && notifications.length === 0 && (
-                  <div style={S.emptyMsg}>You're all caught up 🎉</div>
-                )}
-                {!loading && notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => !n.is_read && markRead(n.id)}
-                    style={{ ...S.notifItem, ...(n.is_read ? S.notifRead : S.notifUnread) }}
-                  >
-                    <div style={{
-                      ...S.typeDot,
-                      background: typeColor[n.type] || typeColor.info
-                    }} />
-                    <div style={S.notifBody}>
-                      <div style={S.notifTitle}>{n.title}</div>
-                      <div style={S.notifMsg}>{n.message}</div>
-                      <div style={S.notifTime}>{timeAgo(n.created_at)}</div>
-                    </div>
-                    {!n.is_read && <div style={S.unreadDot} />}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+ 
+</div>
     </header>
   );
 };
@@ -347,6 +367,71 @@ const S = {
     flexShrink: 0,
     marginTop: "5px",
   },
+    footer: {
+    padding: "10px 8px 14px",
+    borderTop: "1px solid rgba(255,255,255,0.07)",
+    display: "flex", flexDirection: "column", gap: "6px",
+  },
+  right: {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+},
+
+userChip: {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+},
+
+avatar: {
+  width: "32px",
+  height: "32px",
+  borderRadius: "50%",
+  background: "#e74c3c", // same as sidebar
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "13px",
+  fontWeight: "800",
+  color: "#fff",
+  flexShrink: 0,
+},
+
+userInfo: {
+  display: "flex",
+  flexDirection: "column",
+  lineHeight: "1.2",
+},
+
+userName: {
+  fontSize: "13px",
+  fontWeight: "600",
+  color: "#333",
+},
+
+userRole: {
+  fontSize: "10px",
+  color: "#888",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+},
+
+logoutBtn: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "34px",
+  height: "34px",
+  borderRadius: "8px",
+  border: "none",
+  background: "transparent",
+  color: "#555",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+},
 };
+
+
 
 export default Header;

@@ -9,7 +9,6 @@ const {
   markAllRead,
 } = require('../controller/notification.controller');
 
-// All notification routes require auth — no adminOnly, each user sees their own
 router.get ('/unread-count',       authMiddleware, getUnreadCount);
 router.get ('/',                   authMiddleware, getNotifications);
 router.put ('/mark-all-read',      authMiddleware, markAllRead);
