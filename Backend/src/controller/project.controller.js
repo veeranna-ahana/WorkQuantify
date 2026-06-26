@@ -18,6 +18,7 @@ const createProject = async (req, res, next) => {
       startDate,
       endDate,
       status,
+      projectType,
     } = req.body;
 
     if (!name || !clientName) {
@@ -29,8 +30,8 @@ const createProject = async (req, res, next) => {
     const sql = `
       INSERT INTO projects
         (project_name, client_name, description, nbd_id, o2d_id,
-         project_code, sub_category, start_date, end_date, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         project_code, sub_category, start_date, end_date, status, project_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
@@ -44,6 +45,7 @@ const createProject = async (req, res, next) => {
       startDate     || null,
       endDate       || null,
       status        || 'ACTIVE',
+      projectType   || null,
     ];
 
     const result = await query(sql, params);
@@ -51,7 +53,7 @@ const createProject = async (req, res, next) => {
     // Return the full newly-created row
     const rows = await query(
       `SELECT id, project_name, client_name, description, nbd_id, o2d_id,
-              project_code, sub_category, start_date, end_date, status
+              project_code, sub_category, start_date, end_date, status, project_type
        FROM projects WHERE id = ?`,
       [result.insertId]
     );
@@ -68,13 +70,6 @@ const createProject = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const getAllProjects = async (req, res, next) => {
   try {
-    // const sql = `
-    //   SELECT id, project_name, client_name, description,
-    //          nbd_id, o2d_id, project_code, sub_category,
-    //          start_date, end_date, status
-    //   FROM projects
-    //   ORDER BY id ASC
-    // `;
     const sql = `
   SELECT
     p.id,
@@ -88,6 +83,7 @@ const getAllProjects = async (req, res, next) => {
     p.start_date,
     p.end_date,
     p.status,
+    p.project_type,
     COALESCE(SUM(e.total_hrs), 0) AS total_effort_hours,
     COALESCE(SUM(e.effort_days + e.buffer_days), 0) AS total_effort_days
 
@@ -107,7 +103,8 @@ const getAllProjects = async (req, res, next) => {
     p.sub_category,
     p.start_date,
     p.end_date,
-    p.status
+    p.status,
+    p.project_type
 
   ORDER BY p.id ASC
 `;
@@ -245,10 +242,98 @@ const deleteEffortEstimate = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/projects/:id
+// Body: { name, clientName, description, nbdId, o2dId, projectCode,
+//         subCategory, startDate, endDate, status, projectType }
+// ─────────────────────────────────────────────────────────────────────────────
+const updateProject = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      clientName,
+      description,
+      nbdId,
+      o2dId,
+      projectCode,
+      subCategory,
+      startDate,
+      endDate,
+      status,
+      projectType,
+    } = req.body;
+
+    // Check if project exists
+    const projectExists = await query('SELECT id FROM projects WHERE id = ?', [id]);
+    if (!projectExists.length) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    const current = (await query('SELECT * FROM projects WHERE id = ?', [id]))[0];
+
+    const updatedName = name !== undefined ? name : current.project_name;
+    const updatedClientName = clientName !== undefined ? clientName : current.client_name;
+    const updatedDescription = description !== undefined ? description : current.description;
+    const updatedNbdId = nbdId !== undefined ? nbdId : current.nbd_id;
+    const updatedO2dId = o2dId !== undefined ? o2dId : current.o2d_id;
+    const updatedProjectCode = projectCode !== undefined ? projectCode : current.project_code;
+    const updatedSubCategory = subCategory !== undefined ? subCategory : current.sub_category;
+    const updatedStartDate = startDate !== undefined ? startDate : current.start_date;
+    const updatedEndDate = endDate !== undefined ? endDate : current.end_date;
+    const updatedStatus = status !== undefined ? status : current.status;
+    const updatedProjectType = projectType !== undefined ? projectType : current.project_type;
+
+    const updateSql = `
+      UPDATE projects
+      SET
+        project_name = ?,
+        client_name = ?,
+        description = ?,
+        nbd_id = ?,
+        o2d_id = ?,
+        project_code = ?,
+        sub_category = ?,
+        start_date = ?,
+        end_date = ?,
+        status = ?,
+        project_type = ?
+      WHERE id = ?
+    `;
+
+    await query(updateSql, [
+      updatedName,
+      updatedClientName,
+      updatedDescription,
+      updatedNbdId,
+      updatedO2dId,
+      updatedProjectCode,
+      updatedSubCategory,
+      updatedStartDate,
+      updatedEndDate,
+      updatedStatus,
+      updatedProjectType,
+      id,
+    ]);
+
+    const updatedRows = await query(
+      `SELECT id, project_name, client_name, description, nbd_id, o2d_id,
+              project_code, sub_category, start_date, end_date, status, project_type
+       FROM projects WHERE id = ?`,
+      [id]
+    );
+
+    return res.status(200).json(updatedRows[0]);
+  } catch (err) {
+    return next(err);
+  }
+};
+
 module.exports = {
   createProject,
   getAllProjects,
   getEffortEstimate,
   upsertEffortEstimate,
   deleteEffortEstimate,
+  updateProject,
 };
