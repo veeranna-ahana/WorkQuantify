@@ -32,6 +32,9 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
     projectCode: '',
     subCategory: '',
     customer: '',
+    startDate: '',
+    endDate: '',
+    projectType: 'one time project - otp',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,9 +59,10 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
           o2dId: form.o2dId.trim(),
           projectCode: form.projectCode.trim(),
           subCategory: form.subCategory.trim(),
-          startDate: null,
-          endDate: null,
-          status: 'ACTIVE',
+          startDate: form.startDate || null,
+          endDate: form.endDate || null,
+          status: 'new',
+          projectType: form.projectType,
         },
         { headers: getHeaders() }
       );
@@ -121,6 +125,42 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
               )}
             </div>
           ))}
+
+          {/* Start Date */}
+          <div>
+            <label style={O.label}>Start Date</label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={e => handleChange('startDate', e.target.value)}
+              style={O.input}
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label style={O.label}>End Date</label>
+            <input
+              type="date"
+              value={form.endDate}
+              onChange={e => handleChange('endDate', e.target.value)}
+              style={O.input}
+            />
+          </div>
+
+          {/* Project Type */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={O.label}>Project Type <span style={{ color: '#e74c3c', marginLeft: 3 }}>*</span></label>
+            <select
+              value={form.projectType}
+              onChange={e => handleChange('projectType', e.target.value)}
+              style={O.input}
+            >
+              <option value="one time project - otp">one time project - otp</option>
+              <option value="managed service">managed service</option>
+              <option value="Staff Augmentation">Staff Augmentation</option>
+            </select>
+          </div>
         </div>
 
         {error && <p style={O.error}>{error}</p>}
@@ -130,6 +170,177 @@ const CreateProjectModal = ({ onClose, onCreated }) => {
           <button onClick={onClose} style={O.cancelBtn}>Cancel</button>
           <button onClick={handleSubmit} style={O.submitBtn} disabled={saving}>
             {saving ? 'Creating…' : '+ Create Project'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Edit Project Modal ──────────────────────────────────────────────────────
+const EditProjectModal = ({ project, onClose, onUpdated }) => {
+  const [form, setForm] = useState({
+    projectName: project.project_name || project.name || '',
+    description: project.description || '',
+    nbdId: project.nbd_id || '',
+    o2dId: project.o2d_id || '',
+    projectCode: project.project_code || '',
+    subCategory: project.sub_category || '',
+    customer: project.client_name || '',
+    startDate: project.start_date ? project.start_date.split('T')[0] : '',
+    endDate: project.end_date ? project.end_date.split('T')[0] : '',
+    projectType: project.project_type || 'one time project - otp',
+    status: project.status || 'new',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, val) => {
+    setForm(prev => ({ ...prev, [field]: val }));
+    setError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!form.projectName.trim()) return setError('Project Name is required.');
+    if (!form.customer.trim()) return setError('Customer is required.');
+    setSaving(true);
+    try {
+      await axios.put(
+        `${BASE_URL}/api/projects/${project.id}`,
+        {
+          name: form.projectName.trim(),
+          clientName: form.customer.trim(),
+          description: form.description.trim(),
+          nbdId: form.nbdId.trim(),
+          o2dId: form.o2dId.trim(),
+          projectCode: form.projectCode.trim(),
+          subCategory: form.subCategory.trim(),
+          startDate: form.startDate || null,
+          endDate: form.endDate || null,
+          status: form.status,
+          projectType: form.projectType,
+        },
+        { headers: getHeaders() }
+      );
+      onUpdated();
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to update project.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fields = [
+    { key: 'projectName', label: 'Project Name', required: true, placeholder: 'e.g. ERP Phase 2' },
+    { key: 'description', label: 'Description', required: false, placeholder: 'Brief overview…', multiline: true },
+    { key: 'nbdId', label: 'NBD ID', required: false, placeholder: 'e.g. NBD-2024-001' },
+    { key: 'o2dId', label: 'O2D ID', required: false, placeholder: 'e.g. O2D-2024-042' },
+    { key: 'projectCode', label: 'Project Code', required: false, placeholder: 'e.g. PRJ-001' },
+    { key: 'subCategory', label: 'Sub Category', required: false, placeholder: 'e.g. Web App / Mobile' },
+    { key: 'customer', label: 'Customer', required: true, placeholder: 'Client or company name' },
+  ];
+
+  return (
+    <div style={O.overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={O.modal}>
+
+        {/* Header */}
+        <div style={O.header}>
+          <div>
+            <div style={O.title}>Edit Project</div>
+            <div style={O.sub}>Update the details or status of the project.</div>
+          </div>
+          <button onClick={onClose} style={O.closeBtn}>✕</button>
+        </div>
+
+        {/* Form */}
+        <div style={O.formGrid}>
+          {fields.map(f => (
+            <div key={f.key} style={f.multiline ? { gridColumn: '1 / -1' } : {}}>
+              <label style={O.label}>
+                {f.label}
+                {f.required && <span style={{ color: '#e74c3c', marginLeft: 3 }}>*</span>}
+              </label>
+              {f.multiline ? (
+                <textarea
+                  rows={3}
+                  value={form[f.key]}
+                  onChange={e => handleChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  style={{ ...O.input, resize: 'vertical', minHeight: 72 }}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={form[f.key]}
+                  onChange={e => handleChange(f.key, e.target.value)}
+                  placeholder={f.placeholder}
+                  style={O.input}
+                />
+              )}
+            </div>
+          ))}
+
+          {/* Start Date */}
+          <div>
+            <label style={O.label}>Start Date</label>
+            <input
+              type="date"
+              value={form.startDate}
+              onChange={e => handleChange('startDate', e.target.value)}
+              style={O.input}
+            />
+          </div>
+
+          {/* End Date */}
+          <div>
+            <label style={O.label}>End Date</label>
+            <input
+              type="date"
+              value={form.endDate}
+              onChange={e => handleChange('endDate', e.target.value)}
+              style={O.input}
+            />
+          </div>
+
+          {/* Project Type */}
+          <div>
+            <label style={O.label}>Project Type <span style={{ color: '#e74c3c', marginLeft: 3 }}>*</span></label>
+            <select
+              value={form.projectType}
+              onChange={e => handleChange('projectType', e.target.value)}
+              style={O.input}
+            >
+              <option value="one time project - otp">one time project - otp</option>
+              <option value="managed service">managed service</option>
+              <option value="Staff Augmentation">Staff Augmentation</option>
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label style={O.label}>Status <span style={{ color: '#e74c3c', marginLeft: 3 }}>*</span></label>
+            <select
+              value={form.status}
+              onChange={e => handleChange('status', e.target.value)}
+              style={O.input}
+            >
+              <option value="new">new</option>
+              <option value="inprproess">inprproess</option>
+              <option value="onhold">onhold</option>
+              <option value="completed">completed</option>
+            </select>
+          </div>
+        </div>
+
+        {error && <p style={O.error}>{error}</p>}
+
+        {/* Footer */}
+        <div style={O.footer}>
+          <button onClick={onClose} style={O.cancelBtn}>Cancel</button>
+          <button onClick={handleSubmit} style={O.submitBtn} disabled={saving}>
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -398,15 +609,7 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEffortModal, setShowEffortModal] = useState(false);
-  const fileInputRef = React.useRef(null);
-
-  const handleTimesheetUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      alert(`Backend API not integrated yet.\nSelected file: ${file.name}`);
-      e.target.value = null; // Reset input
-    }
-  };
+  const [editingProject, setEditingProject] = useState(null);
 
   const fetchProjects = async () => {
     try {
@@ -424,8 +627,29 @@ const Projects = () => {
   useEffect(() => { fetchProjects(); }, []);
 
   const statusColor = (s = '') => {
-    const m = { ACTIVE: '#2ecc71', active: '#2ecc71', COMPLETED: '#3498db', completed: '#3498db', 'ON-HOLD': '#f39c12' };
+    const m = {
+      new: '#2ecc71',
+      inprproess: '#3498db',
+      onhold: '#f39c12',
+      completed: '#95a5a6',
+      ACTIVE: '#2ecc71',
+      active: '#2ecc71',
+      COMPLETED: '#95a5a6',
+      'ON-HOLD': '#f39c12'
+    };
     return m[s] || '#95a5a6';
+  };
+
+  const formatStatus = (s = '') => {
+    const labels = {
+      new: 'New',
+      inprproess: 'In Progress',
+      onhold: 'On Hold',
+      completed: 'Completed',
+      ACTIVE: 'Active',
+      active: 'Active',
+    };
+    return labels[s] || s;
   };
 
   return (
@@ -438,16 +662,6 @@ const Projects = () => {
           <div style={P.underline} />
         </div>
         <div style={P.btnGroup}>
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleTimesheetUpload}
-            accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-          />
-          <button onClick={() => fileInputRef.current.click()} style={P.uploadBtn}>
-            📁 Upload Timesheet
-          </button>
           <button onClick={() => setShowEffortModal(true)} style={P.effortBtn}>
             📊 Effort Estimate
           </button>
@@ -464,20 +678,23 @@ const Projects = () => {
         <div style={P.msg}>No projects found. Create one to get started.</div>
       ) : (
         <div style={P.tableWrap}>
-          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+          <div style={{ maxHeight: 420, overflowY: 'auto', overflowX: 'auto' }}>
             <table style={P.table}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr>
-                  {/* {['#', 'Project Name', 'Client', 'Start Date', 'End Date', 'Status'].map(h => ( */}
                   {[
                     '#',
+                    'Project Code',
+                    'NBD ID',
+                    'O2D ID',
                     'Project Name',
-                    'Client',
+                    'Type',
                     'Start Date',
                     'End Date',
                     'Status',
                     'Effort (Days)',
-                    'Effort (Hours)'
+                    'Effort (Hours)',
+                    'Action'
                   ].map(h => (
                     <th key={h} style={P.th}>{h}</th>
                   ))}
@@ -486,11 +703,14 @@ const Projects = () => {
               <tbody>
                 {projects.map((p, i) => (
                   <tr key={p.id} style={P.tr}>
-                    <td style={{ ...P.td, color: '#aaa', width: 40 }}>{i + 1}</td>
+                    <td style={{ ...P.td, color: '#aaa', width: 40, textAlign: 'center' }}>{i + 1}</td>
+                    <td style={P.td}>{p.project_code || '—'}</td>
+                    <td style={P.td}>{p.nbd_id || '—'}</td>
+                    <td style={P.td}>{p.o2d_id || '—'}</td>
                     <td style={{ ...P.td, fontWeight: 600, color: '#1e272e' }}>
                       {p.project_name || p.name}
                     </td>
-                    <td style={P.td}>{p.client_name || '—'}</td>
+                    <td style={P.td}>{p.project_type || '—'}</td>
                     <td style={P.td}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                     <td style={P.td}>{p.end_date ? fmtDate(p.end_date) : '—'}</td>
                     <td style={P.td}>
@@ -499,7 +719,7 @@ const Projects = () => {
                         fontWeight: 700, color: '#fff',
                         background: statusColor(p.status),
                       }}>
-                        {p.status || 'N/A'}
+                        {formatStatus(p.status)}
                       </span>
                     </td>
                     <td style={P.td}>
@@ -508,6 +728,14 @@ const Projects = () => {
 
                     <td style={P.td}>
                       {`${p.total_effort_hours ?? 0} Hrs`}
+                    </td>
+                    <td style={P.td}>
+                      <button
+                        onClick={() => setEditingProject(p)}
+                        style={P.editBtn}
+                      >
+                        ✏️ Edit
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -524,9 +752,13 @@ const Projects = () => {
           onCreated={fetchProjects}
         />
       )}
-      {/* {showEffortModal && (
-        <EffortEstimateModal onClose={() => setShowEffortModal(false)} />
-      )} */}
+      {editingProject && (
+        <EditProjectModal
+          project={editingProject}
+          onClose={() => setEditingProject(null)}
+          onUpdated={fetchProjects}
+        />
+      )}
       {showEffortModal && (
         <EffortEstimateModal
           projects={projects}
@@ -548,7 +780,7 @@ const fmtDate = (d) => {
 // ── Styles ────────────────────────────────────────────────────────────────────
 // Page
 const P = {
-  page: { padding: '24px', maxWidth: 1200, margin: '0 auto', fontFamily: 'sans-serif' },
+  page: { padding: '24px', width: '100%', boxSizing: 'border-box', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28, flexWrap: 'wrap', gap: 12 },
   heading: { margin: 0, color: '#1e272e', fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 6 },
   underline: { width: 52, height: 4, background: '#e74c3c', borderRadius: 2 },
@@ -571,11 +803,17 @@ const P = {
     cursor: 'pointer', whiteSpace: 'nowrap',
     boxShadow: '0 2px 8px rgba(52,152,219,0.3)',
   },
+  editBtn: {
+    padding: '5px 12px', background: '#f39c12', color: '#fff',
+    border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700,
+    cursor: 'pointer', whiteSpace: 'nowrap',
+    boxShadow: '0 1px 4px rgba(243,156,18,0.2)',
+  },
   tableWrap: { background: '#fff', borderRadius: 12, boxShadow: '0 2px 10px rgba(0,0,0,0.08)', overflow: 'hidden', border: '1px solid #f0f0f0' },
-  table: { width: '100%', borderCollapse: 'collapse' },
+  table: { width: '100%', minWidth: '1200px', borderCollapse: 'collapse' },
   th: { background: '#1e272e', color: '#fff', padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' },
   tr: { borderBottom: '1px solid #f0f0f0' },
-  td: { padding: '13px 16px', fontSize: 13, color: '#444' },
+  td: { padding: '13px 16px', fontSize: 13, color: '#444', whiteSpace: 'nowrap' },
   msg: { padding: 48, textAlign: 'center', color: '#bbb', fontSize: 15, background: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
 };
 

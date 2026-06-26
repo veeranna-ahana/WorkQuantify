@@ -8,12 +8,13 @@ const {
   getEffortEstimate,
   upsertEffortEstimate,
   deleteEffortEstimate,
+  updateProject,
 } = require('../controller/project.controller');
 
 // ── Project CRUD ──────────────────────────────────────────────
 router.post('/', authMiddleware,  createProject);
-
 router.get('/',  authMiddleware, getAllProjects);
+router.put('/:id', authMiddleware, updateProject);
 
 // ── Effort Estimate ───────────────────────────────────────────
 // GET    /api/projects/:projectId/effort       — fetch estimate for project

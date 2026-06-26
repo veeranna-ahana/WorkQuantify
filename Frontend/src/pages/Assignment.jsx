@@ -150,8 +150,8 @@ const AssignModal = ({ modal, users, assignments, onAssign, onDelete, onClose })
             <label style={M.label}>Employee</label>
             <select value={selUser} onChange={e => { setSelUser(e.target.value); setError(""); }} style={M.select}>
               <option value="">Select employee…</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
+              {users.map(emp => (
+                <option key={emp.employee_id} value={emp.employee_id}>{emp.emp_name}</option>
               ))}
             </select>
           </div>
@@ -309,13 +309,20 @@ const AssignmentScreen = () => {
   // ── Load draft input — CHANGED: now handles sub-fields ───────────────────
   const handleLoadInput = (role, taskName, field, val) => {
     const key = `${role}||${taskName}`;
-    setLoadDraft(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
+    setLoadDraft(prev => {
+      const currentEntry = prev[key] || {};
+      const nextEntry = {
+        ...currentEntry,
         [field]: val === "" ? "" : Number(val),
-      },
-    }));
+      };
+      if (field === "estimated_days") {
+        nextEntry.estimated_hours = val === "" ? "" : Number(val) * 8;
+      }
+      return {
+        ...prev,
+        [key]: nextEntry,
+      };
+    });
   };
 
   // ── Save all loads — CHANGED: now sends estimated_days + estimated_hours ──
@@ -598,7 +605,7 @@ console.log("Redux employees:", serviceDeliveryEmployees);
       {assignModal && (
         <AssignModal
           modal={assignModal}
-          users={users}
+          users={serviceDeliveryEmployees}
           assignments={assignments}
           onAssign={handleAddAssignment}
           onDelete={handleDelete}

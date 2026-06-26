@@ -1,10 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import axios from 'axios';
 //const BASE_URL  = process.env.REACT_APP_API_BASE_URL;
 const BASE_URL  = import.meta.env.VITE_API_BASE_URL;
 
 const Tasks = () => {
+  const serviceDeliveryEmployees = useSelector(
+    (state) => state.auth.serviceDeliveryEmployees
+  );
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -161,9 +165,9 @@ const Tasks = () => {
               style={selectStyle}
             >
               <option value="">Select User</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
+              {serviceDeliveryEmployees.map((emp) => (
+                <option key={emp.employee_id} value={emp.employee_id}>
+                  {emp.emp_name}
                 </option>
               ))}
             </select>
