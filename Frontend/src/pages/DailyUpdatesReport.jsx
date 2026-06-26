@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './DailyUpdatesReport.css';
+import { useSelector } from "react-redux";
+
 
 // Point this at wherever your Express API is mounted.
 const API_BASE = import.meta.env.VITE_API_BASE_URL;
@@ -154,6 +156,12 @@ export default function DailyUpdatesReport() {
 
   const dateLabel = formatDateLabel(selectedDate);
 
+const serviceDeliveryEmployees = useSelector(
+  (state) => state.auth.serviceDeliveryEmployees
+);
+
+console.log("Redux employees:", serviceDeliveryEmployees);
+
   return (
     <div className="dur-page">
       <div className="dur-toolbar">
@@ -191,14 +199,29 @@ export default function DailyUpdatesReport() {
 
           <label className="dur-filter">
             <span>Employee</span>
-            <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
+            {/* <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)}>
               <option value="">All employees</option>
               {meta.employees.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
               ))}
-            </select>
+            </select> */}
+            <select
+  value={selectedEmployee}
+  onChange={(e) => setSelectedEmployee(e.target.value)}
+>
+  <option value="">All employees</option>
+
+  {serviceDeliveryEmployees.map((emp) => (
+    <option
+      key={emp.employee_id}
+      value={emp.employee_id}
+    >
+      {emp.emp_name}
+    </option>
+  ))}
+</select>
           </label>
         </div>
       </div>

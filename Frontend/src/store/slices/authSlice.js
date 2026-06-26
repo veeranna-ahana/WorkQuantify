@@ -13,6 +13,8 @@ const getInitialUser = () => {
 
 const initialState = {
   user: getInitialUser(),
+    serviceDeliveryEmployees: [],
+
 };
 
 const authSlice = createSlice({
@@ -21,6 +23,11 @@ const authSlice = createSlice({
   reducers: {
     loginUser: (state, action) => {
       const data = action.payload;
+
+      // console.log("data",data);
+      console.log("data",data.serviceDeliveryEmployees);
+      const serviceDeliveryEmployees = data.serviceDeliveryEmployees || [];
+      
 
       // Handle both array and object result formats
       const userResult = Array.isArray(data.result) ? data.result[0] : data.result;
@@ -58,6 +65,14 @@ const authSlice = createSlice({
       });
 
       state.user = user;
+      console.log(
+  "Employees from payload:",
+  data.serviceDeliveryEmployees.length,
+  data.serviceDeliveryEmployees
+);
+     state.serviceDeliveryEmployees = serviceDeliveryEmployees;
+
+
     },
 
     logoutUser: (state) => {
@@ -67,6 +82,7 @@ const authSlice = createSlice({
       localStorage.removeItem("emp_id");
 
       state.user = null;
+      state.serviceDeliveryEmployees = [];
       window.close();
     },
   },

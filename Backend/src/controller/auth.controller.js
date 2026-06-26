@@ -95,6 +95,7 @@ const login = async (req, res) => {
     // Fetch RBC/RBAC details (with or without authToken)
     let rbacData = null;
     let departmentData = [];
+    let serviceDeliveryEmployees = []; // For CR: Store Service Delivery employees
 
     const baseURL = process.env.RBAC_API_URL;
     
@@ -149,7 +150,8 @@ const login = async (req, res) => {
           try {
             const deptListResponse = await instance.get("/department_admin/get-departments");
             departments = deptListResponse.data?.departments || [];
-            console.log("📦 Fetched departments:", departments.length);
+            console.log("📦 Fetched departments:", departments);
+            // console.log("📦 Fetched departments:", departments.length);
           } catch (deptError) {
             console.warn("⚠️ Department fetch failed:", deptError.message);
             departments = [];
@@ -157,6 +159,7 @@ const login = async (req, res) => {
 
           // Fetch employee department associations
           let deptEmployeeResponses = [];
+          let allDepartmentEmployees = [];
           if (departments.length) {
             const deptPromises = departments.map((dept) =>
               instance.get(
@@ -170,6 +173,24 @@ const login = async (req, res) => {
           deptEmployeeResponses.forEach((res, index) => {
             if (res.status === "fulfilled" && res.value?.data) {
               const employees = res.value.data?.data || [];
+              console.log("Current Department:", departments[index].department_name);
+              // New code for CR
+if (departments[index].department_name === "Service Delivery") {
+  console.log("Service Delivery Employees:", employees.map((emp) => emp.emp_name));
+
+  serviceDeliveryEmployees = employees;
+}
+              // Store all employees for CR (without affecting existing logic)
+allDepartmentEmployees.push({
+  department_id: departments[index].department_id,
+  department_name: departments[index].department_name,
+  employees,
+});
+               console.log(
+      `Department ${departments[index].department_name} (${departments[index].department_id}) has ${employees.length} employees`
+    );
+
+    console.log("Employee List:", employees);
               const match = employees.find((emp) => emp.employee_id === user.emp_id);
               if (match) {
                 departmentData.push({
@@ -179,8 +200,15 @@ const login = async (req, res) => {
                   department_name: match.department_name,
                 });
               }
+              //fetching all emp by department
             }
           });
+
+          // console.log("All Department Employees:", allDepartmentEmployees);
+          console.log(
+  "All Department Employees:",
+  JSON.stringify(allDepartmentEmployees, null, 2)
+);
 
           // Remove duplicate departments
           departmentData = Array.from(
@@ -234,6 +262,7 @@ const login = async (req, res) => {
       result: loginResult.result,
       source: loginResult.source,
       departments: departmentData,
+      serviceDeliveryEmployees: serviceDeliveryEmployees, // For CR: Return Service Delivery employees
     });
 
   } catch (error) {
