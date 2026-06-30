@@ -34,6 +34,7 @@ const authSlice = createSlice({
 
       const user = {
         userid: data.userid,
+        id: data.id || userResult?.id,
         emp_id: userResult?.emp_id,
         emp_email: userResult?.emp_email,
         emp_name: userResult?.emp_name,
@@ -50,12 +51,18 @@ const authSlice = createSlice({
         emp_name: user.emp_name,
         role: user.role,
         emp_id: user.emp_id,
+        id: user.id,
       });
 
       // Store accessToken in localStorage for axios interceptor
       if (data.accessToken) {
         localStorage.setItem("token", data.accessToken);
         console.log("🔐 Token stored in localStorage");
+      }
+
+      if (user.id) {
+        localStorage.setItem("UserID", user.id);
+        console.log("🔐 UserID stored in localStorage:", user.id);
       }
 
       // persist user in cookie
@@ -80,6 +87,7 @@ const authSlice = createSlice({
       localStorage.removeItem("token");
       localStorage.removeItem("email");
       localStorage.removeItem("emp_id");
+      localStorage.removeItem("UserID");
 
       state.user = null;
       state.serviceDeliveryEmployees = [];

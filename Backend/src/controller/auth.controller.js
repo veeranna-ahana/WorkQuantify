@@ -233,10 +233,46 @@ allDepartmentEmployees.push({
       departmentData
     );
 
+    // Fetch local user id from Quantify.users table, or auto-create if missing
+    let localUserId = null;
+    const empIdForLookup = loginResult.result[0]?.emp_id || user.emp_id;
+    if (empIdForLookup) {
+      try {
+        const [localUserRows] = await pool.promise().query(
+          "SELECT id FROM users WHERE emp_id = ?",
+          [empIdForLookup]
+        );
+        if (localUserRows && localUserRows.length > 0) {
+          localUserId = localUserRows[0].id;
+        } else {
+          // Auto-create local user
+          const roleForUser = loginResult.result[0]?.role || "EMP";
+          const normalizedRole = roleForUser === "Admin" ? "ADMIN" : (roleForUser === "Manager" ? "MANAGER" : "EMP");
+          
+          console.log(`👤 Auto-provisioning local user for emp_id: ${empIdForLookup}`);
+          const [insertResult] = await pool.promise().query(
+            `INSERT INTO users (emp_id, name, email, role, daily_capacity) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [
+              empIdForLookup,
+              user.emp_name || loginResult.result[0]?.emp_name || "Employee",
+              user.emp_email || loginResult.result[0]?.emp_email || "",
+              normalizedRole,
+              8
+            ]
+          );
+          localUserId = insertResult.insertId;
+        }
+      } catch (dbErr) {
+        console.error("❌ Error finding or creating local user during login:", dbErr.message);
+      }
+    }
+
     // Generate tokens
     const tokenPayload = {
-      emp_id: loginResult.result[0]?.emp_id || user.emp_id,
+      emp_id: empIdForLookup,
       userid: loginResult.userid,
+      id: localUserId,
       role_id: loginResult.result[0]?.role_id || 0,
     };
 
@@ -251,13 +287,14 @@ allDepartmentEmployees.push({
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
-    console.log("✅ Login successful for:", user.emp_email);
+    console.log("✅ Login successful for:", user.emp_email, "| Local User ID:", localUserId);
     
     return res.status(200).json({
       status: "success",
       success: true,
       message: "Login successful",
       userid: loginResult.userid,
+      id: localUserId,
       accessToken,
       result: loginResult.result,
       source: loginResult.source,

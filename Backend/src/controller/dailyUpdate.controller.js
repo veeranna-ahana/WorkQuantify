@@ -3,11 +3,22 @@ const { query } = require("../config/db");
 //POST/api/daily-updates
 const addDailyUpdate = async (req, res, next) => {
   try {
-    const {
+    let {
       project_id, role, task_name, user_id, date,
       units_completed, hours_spent, remarks,
       todays_task, tomorrows_plan, risk_level, risk_description
     } = req.body;
+
+    if (!user_id || user_id === "null" || user_id === "undefined") {
+      const empId = req.user?.emp_id;
+      if (empId) {
+        const rows = await query("SELECT id FROM users WHERE emp_id = ?", [empId]);
+        if (rows && rows.length > 0) {
+          user_id = rows[0].id;
+          console.log(`ℹ️ Resolved user_id for addDailyUpdate from token: ${user_id}`);
+        }
+      }
+    }
 
     if (!project_id || !role || !task_name || !user_id || !date) {
       return res.status(400).json({
@@ -66,7 +77,18 @@ const addDailyUpdate = async (req, res, next) => {
 // GET/api/daily-updates?userId=
 const getDailyUpdatesByUserId = async (req, res, next) => {
   try {
-    const { userId } = req.query;
+    let { userId } = req.query;
+
+    if (!userId || userId === "null" || userId === "undefined") {
+      const empId = req.user?.emp_id;
+      if (empId) {
+        const rows = await query("SELECT id FROM users WHERE emp_id = ?", [empId]);
+        if (rows && rows.length > 0) {
+          userId = rows[0].id;
+          console.log(`ℹ️ Resolved userId for getDailyUpdatesByUserId from token: ${userId}`);
+        }
+      }
+    }
 
     const sql = `
       SELECT 
