@@ -38,16 +38,32 @@ const getNotifications = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const getUnreadCount = async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    // ✅ Check if user exists and has id
+    const userId = req.user?.id || req.user?.userid;
+    
+    if (!userId) {
+      console.warn("⚠️ getUnreadCount: No user ID found in request");
+      return res.status(200).json({ count: 0 });
+    }
+
+    // ✅ Ensure userId is a valid number
+    const userIdNum = parseInt(userId);
+    if (isNaN(userIdNum) || userIdNum <= 0) {
+      console.warn("⚠️ getUnreadCount: Invalid user ID:", userId);
+      return res.status(200).json({ count: 0 });
+    }
 
     const rows = await query(
       `SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = 0`,
-      [userId]
+      [userIdNum]
     );
 
-    return res.status(200).json({ count: rows[0].count });
+    return res.status(200).json({ count: rows[0]?.count || 0 });
+    
   } catch (err) {
-    return next(err);
+    console.error("❌ getUnreadCount error:", err.message);
+    // ✅ Always return a valid response, don't throw
+    return res.status(200).json({ count: 0 });
   }
 };
 

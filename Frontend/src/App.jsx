@@ -13,9 +13,10 @@ import DailyUpdates from './pages/DailyUpdate';
 import AssignmentScreen from './pages/Assignment';
 import MyWork from './pages/MyWork';
 import UtilizationDashboard from './pages/UtilizationDashboard';
-import Approvals from './pages/Approvals';                        // ← NEW
-import Reconciliation from './pages/Reconciliation/Reconciliation';
-import DailyUpdatesReport from './pages/DailyUpdatesReport';
+import Approvals from './pages/Approvals'; 
+import DailyUpdatesReport from './pages/DailyUpdate';
+import ReconPage from './pages/Recon';
+import ReconciliationUpload from './pages/ReconciliationUpload';
 
 function App() {
 
@@ -37,8 +38,12 @@ function App() {
           <Route path="quantificationnew"  element={<UtilizationDashboard />} />
           <Route path="dailyreport"  element={<DailyUpdatesReport />} />
           <Route path="approvals"    element={<Approvals />} />
-          <Route path="reconciliation" element={<Reconciliation />} />
+           {/* ─── Reconciliation Routes ─── */}
+          <Route path="reconciliation/dashboard" element={<ReconPage />} />
+          <Route path="reconciliation/upload" element={<ReconciliationUpload />} />
+          <Route path="reconciliation" element={<Navigate to="/reconciliation/upload" replace />} />
         </Route>
+        
 
         {/* Default redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />

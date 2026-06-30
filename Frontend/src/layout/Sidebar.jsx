@@ -1,8 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import Cookies from "js-cookie";
-import { useEffect } from "react";
 
 // ── Inline SVG icons ──────────────────────────────────────────────────────────
 const Icon = ({ d, size = 18 }) => (
@@ -25,10 +24,104 @@ const Icons = {
   chevronLeft: "M15 18l-6-6 6-6",
   chevronRight:"M9 18l6-6-6-6",
   reconciliation: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  upload:      "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12",
+  reconDashboard: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
 };
 
-// Role-based navigation links
+// ── Submenu Component ──────────────────────────────────────────────────────
+const SubMenu = ({ label, icon, children, collapsed, isActive }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Auto-expand if any child is active
+  useEffect(() => {
+    if (children?.some(child => child.isActive)) {
+      setIsOpen(true);
+    }
+  }, [children]);
+
+  if (collapsed) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <div style={S.link}>
+          <Icon d={Icons[icon]} size={18} />
+        </div>
+        {isOpen && (
+          <div style={S.dropdownMenu}>
+            {children.map((child) => (
+              <NavLink
+                key={child.to}
+                to={child.to}
+                style={({ isActive }) => ({
+                  ...S.dropdownLink,
+                  ...(isActive ? S.linkActive : {}),
+                })}
+              >
+                <Icon d={Icons[child.icon]} size={16} />
+                <span style={S.linkLabel}>{child.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.submenuContainer}>
+      <div 
+        style={{
+          ...S.link,
+          ...(isActive ? S.linkActive : {}),
+          cursor: 'pointer',
+          justifyContent: 'flex-start',
+          padding: '10px 14px',
+        }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Icon d={Icons[icon]} size={18} />
+        <span style={S.linkLabel}>{label}</span>
+        <span style={{ marginLeft: 'auto', fontSize: '12px' }}>
+          {isOpen ? '▼' : '▶'}
+        </span>
+      </div>
+      {isOpen && (
+        <div style={S.submenuItems}>
+          {children.map((child) => (
+            <NavLink
+              key={child.to}
+              to={child.to}
+              style={({ isActive }) => ({
+                ...S.submenuLink,
+                ...(isActive ? S.linkActive : {}),
+              })}
+            >
+              <Icon d={Icons[child.icon]} size={16} />
+              <span style={S.linkLabel}>{child.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── ✅ UPDATED: Role-based navigation links with Reconciliation submenu ──
 const ROLE_LINKS = {
+  Admin: [
+    { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
+    // { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
+    // { to: "/projects", label: "Projects", icon: "projects" },
+    // { to: "/assignments", label: "Assignments", icon: "assignments" },
+    // { to: "/approvals", label: "Approvals", icon: "approvals" },
+    { 
+      label: "Reconciliation", 
+      icon: "reconciliation",
+      children: [
+        { to: "/reconciliation/upload", label: "Timesheet Upload", icon: "upload" },
+        { to: "/reconciliation/dashboard", label: "Recon Dashboard", icon: "reconDashboard" },
+      ]
+    },
+  ],
   Manager: [
     { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
     { to: "/dailyreport", label: "Daily Report", icon: "dailyUpdate" },
@@ -36,19 +129,11 @@ const ROLE_LINKS = {
     { to: "/assignments", label: "Assignments", icon: "assignments" },
     { to: "/approvals", label: "Approvals", icon: "approvals" },
   ],
-  Admin: [
-    { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
-    { to: "/reconciliation", label: "Reconciliation", icon: "reconciliation" },
-  ],
   Employee: [
     { to: "/quantificationnew", label: "Utilization", icon: "utilization" },
     { to: "/my-work", label: "My Work", icon: "myWork" },
   ],
 };
-
-// Fallback for old "ADMIN" role (backward compatibility)
-const ADMIN_LINKS = ROLE_LINKS.Manager;
-const EMP_LINKS = ROLE_LINKS.Employee;
 
 // ─────────────────────────────────────────────────────────────────────────────
 const Sidebar = () => {
@@ -68,7 +153,14 @@ const Sidebar = () => {
   }
 
   const userName = user?.emp_name || localStorage.getItem("userName") || "User";
-  const userRole = user?.role || localStorage.getItem("role") || "Employee";
+  
+  // ✅ FIX: Normalize role to match ROLE_LINKS keys
+  const rawRole = user?.role || localStorage.getItem("role") || "Employee";
+  // Map "ADMIN" to "Admin" to match ROLE_LINKS
+  let userRole = rawRole;
+  if (rawRole === "ADMIN") userRole = "Admin";
+  if (rawRole === "MANAGER") userRole = "Manager";
+  if (rawRole === "EMPLOYEE") userRole = "Employee";
 
   // Get links based on user role from RBAC
   const links = ROLE_LINKS[userRole] || ROLE_LINKS.Employee;
@@ -76,17 +168,56 @@ const Sidebar = () => {
   console.log("🔑 Sidebar - User Role:", userRole, "| Available Links:", links.length);
 
   const handleLogout = () => {
-
     Cookies.remove("user");
     localStorage.removeItem("token");
     localStorage.removeItem("email");
     localStorage.removeItem("emp_id");
-
+    localStorage.removeItem("role");
+    localStorage.removeItem("userName");
     window.close();
-
   };
 
- 
+  // Render navigation item (handles both regular links and submenus)
+  const renderNavItem = (item) => {
+    if (item.children) {
+      // This is a submenu item
+      const isActive = item.children.some(child => 
+        window.location.pathname.includes(child.to)
+      );
+      
+      return (
+        <SubMenu
+          key={item.label}
+          label={item.label}
+          icon={item.icon}
+          children={item.children.map(child => ({
+            ...child,
+            isActive: window.location.pathname === child.to
+          }))}
+          collapsed={collapsed}
+          isActive={isActive}
+        />
+      );
+    } else {
+      // Regular link
+      return (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          title={collapsed ? item.label : undefined}
+          style={({ isActive }) => ({
+            ...S.link,
+            ...(isActive ? S.linkActive : {}),
+            justifyContent: collapsed ? "center" : "flex-start",
+            padding: collapsed ? "10px 0" : "10px 14px",
+          })}
+        >
+          <Icon d={Icons[item.icon]} size={18} />
+          {!collapsed && <span style={S.linkLabel}>{item.label}</span>}
+        </NavLink>
+      );
+    }
+  };
 
   return (
     <div style={{ ...S.sidebar, width: collapsed ? "64px" : "220px" }}>
@@ -107,27 +238,12 @@ const Sidebar = () => {
 
       {/* Nav links */}
       <nav style={S.nav}>
-        {links.map(({ to, label, icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            title={collapsed ? label : undefined}
-            style={({ isActive }) => ({
-              ...S.link,
-              ...(isActive ? S.linkActive : {}),
-              justifyContent: collapsed ? "center" : "flex-start",
-              padding: collapsed ? "10px 0" : "10px 14px",
-            })}
-          >
-            <Icon d={Icons[icon]} size={18} />
-            {!collapsed && <span style={S.linkLabel}>{label}</span>}
-          </NavLink>
-        ))}
+        {links.map((item) => renderNavItem(item))}
       </nav>
 
       {/* Footer: user + logout */}
       <div style={S.footer}>
-        {/* {!collapsed && (
+        {!collapsed && (
           <div style={S.userChip}>
             <div style={S.avatar}>{userName.charAt(0).toUpperCase()}</div>
             <div style={S.userInfo}>
@@ -135,8 +251,8 @@ const Sidebar = () => {
               <div style={S.userRole}>{userRole}</div>
             </div>
           </div>
-        )} */}
-        {/* <button
+        )}
+        <button
           onClick={handleLogout}
           style={{
             ...S.logoutBtn,
@@ -147,7 +263,7 @@ const Sidebar = () => {
         >
           <Icon d={Icons.logout} size={16} />
           {!collapsed && <span style={{ marginLeft: "10px" }}>Sign Out</span>}
-        </button> */}
+        </button>
       </div>
     </div>
   );
@@ -168,7 +284,7 @@ const S = {
   },
   brandName:  { fontSize: "15px", fontWeight: "800", color: "white", letterSpacing: "-0.3px", whiteSpace: "nowrap" },
   brandIcon:  { fontSize: "13px", fontWeight: "800", color: "white", margin: "0 auto" },
-  collapseBtn:{
+  collapseBtn: {
     background: "rgba(255,255,255,0.08)", border: "none", color: "#bbb",
     cursor: "pointer", borderRadius: "6px", padding: "5px 7px",
     display: "flex", alignItems: "center", flexShrink: 0, transition: "background 0.15s",
@@ -209,6 +325,55 @@ const S = {
     color: "rgba(255,255,255,0.5)", cursor: "pointer",
     borderRadius: "7px", fontSize: "13px", fontWeight: "500",
     transition: "background 0.15s, color 0.15s",
+  },
+  // Submenu styles
+  submenuContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+  },
+  submenuItems: {
+    paddingLeft: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  submenuLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    color: 'rgba(255,255,255,0.5)',
+    textDecoration: 'none',
+    borderRadius: '7px',
+    fontSize: '13px',
+    fontWeight: '400',
+    padding: '8px 14px',
+    transition: 'background 0.15s, color 0.15s',
+    whiteSpace: 'nowrap',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    left: '100%',
+    top: 0,
+    background: '#2c3e50',
+    borderRadius: '7px',
+    padding: '8px',
+    minWidth: '200px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    zIndex: 1000,
+  },
+  dropdownLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    color: 'rgba(255,255,255,0.6)',
+    textDecoration: 'none',
+    borderRadius: '5px',
+    fontSize: '13px',
+    fontWeight: '400',
+    padding: '8px 12px',
+    transition: 'background 0.15s, color 0.15s',
+    whiteSpace: 'nowrap',
   },
 };
 
