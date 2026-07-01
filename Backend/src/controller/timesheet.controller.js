@@ -1,5 +1,5 @@
 // ============================================
-// COMPLETE FIXED UPLOAD CONTROLLER
+// COMPLETE UPLOAD CONTROLLER WITH SSO SUPPORT
 // ============================================
 
 const xlsx = require('xlsx');
@@ -15,7 +15,6 @@ function generateBatchCode() {
 function parseDate(value) {
     if (!value) return null;
     
-    // If it's a number (Excel serial)
     if (typeof value === 'number') {
         const utcDays = value - 25569;
         const d = new Date(utcDays * 86400 * 1000);
@@ -26,9 +25,7 @@ function parseDate(value) {
         };
     }
     
-    // If it's a string
     if (typeof value === 'string') {
-        // Try YYYY-MM-DD
         let parts = value.split('-');
         if (parts.length === 3) {
             return {
@@ -37,7 +34,6 @@ function parseDate(value) {
                 day: parseInt(parts[2])
             };
         }
-        // Try DD/MM/YYYY
         parts = value.split('/');
         if (parts.length === 3) {
             return {
@@ -53,20 +49,84 @@ function parseDate(value) {
 
 const uploadTimesheet = async (req, res, next) => {
     try {
+        // ─── 1. Check File ────────────────────────────────────────────
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
         }
 
+        // ─── 2. Read Excel ────────────────────────────────────────────
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const data = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
 
-        if (!data || data.length === 0) {
-            return res.status(400).json({ message: "Excel file is empty" });
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ message: "Excel file is empty or invalid format" });
         }
 
+        // ─── 3. Get User ID (SSO Compatible) ─────────────────────────
         const batchCode = generateBatchCode();
-        const userId = req.user.id;
+        let userId = null;
         
+        const tokenEmpId = req.user?.emp_id;
+        const tokenUserId = req.user?.id || req.user?.userid;
+        
+        console.log('🔍 Token data:', { tokenEmpId, tokenUserId });
+        
+        // Method 1: Find by emp_id from token
+        if (tokenEmpId) {
+            const userResult = await query(`SELECT id FROM users WHERE emp_id = ?`, [tokenEmpId]);
+            if (userResult.length > 0) {
+                userId = userResult[0].id;
+                console.log('✅ Found user by emp_id:', userId);
+            }
+        }
+        
+        // Method 2: Extract numeric ID from userid (e.g., "10998_ASC00089" → 10998)
+        if (!userId && tokenUserId) {
+            let numericId = tokenUserId;
+            if (typeof numericId === 'string' && numericId.includes('_')) {
+                numericId = parseInt(numericId.split('_')[0]);
+            } else {
+                numericId = parseInt(numericId);
+            }
+            
+            if (!isNaN(numericId)) {
+                const userResult = await query(`SELECT id FROM users WHERE id = ?`, [numericId]);
+                if (userResult.length > 0) {
+                    userId = userResult[0].id;
+                    console.log('✅ Found user by numeric ID:', userId);
+                }
+            }
+        }
+        
+        // Method 3: Fallback - use admin user for SSO
+        if (!userId) {
+            console.warn('⚠️ SSO user not found in local DB, using fallback user');
+            const fallbackUser = await query(`SELECT id FROM users WHERE role = 'ADMIN' LIMIT 1`);
+            if (fallbackUser.length > 0) {
+                userId = fallbackUser[0].id;
+                console.log('✅ Using fallback admin user:', userId);
+            } else {
+                // Create default admin if none exists
+                const insertResult = await query(
+                    `INSERT INTO users (emp_id, name, email, role, daily_capacity) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    ['SSO_ADMIN', 'SSO Admin', 'sso_admin@workquantify.com', 'ADMIN', 8]
+                );
+                userId = insertResult.insertId;
+                console.log('✅ Created new admin user for SSO:', userId);
+            }
+        }
+        
+        if (!userId) {
+            return res.status(401).json({ 
+                message: 'User not authenticated. Please login again.',
+                debug: { tokenEmpId, tokenUserId }
+            });
+        }
+
+        console.log('✅ Final userId:', userId);
+
+        // ─── 4. Create Batch ───────────────────────────────────────────
         const batchResult = await query(
             `INSERT INTO timesheet_batches 
              (batch_code, uploaded_by, file_name, total_records, status) 
@@ -76,25 +136,29 @@ const uploadTimesheet = async (req, res, next) => {
         
         const batchId = batchResult.insertId;
 
+        // ─── 5. Get Existing Users & Projects ────────────────────────
         const projects = await query(`SELECT id, project_code FROM projects WHERE project_code IS NOT NULL`);
         const users = await query(`SELECT id, emp_id FROM users WHERE emp_id IS NOT NULL`);
         
         const projectMap = new Map(projects.map(p => [p.project_code, p.id]));
         const userMap = new Map(users.map(u => [u.emp_id, u.id]));
 
+        // ─── 6. Process Each Row ──────────────────────────────────────
         let totalEntries = 0;
-        let employeeNotFoundCount = 0;
-        let projectNotFoundCount = 0;
+        let duplicateEntries = 0;
         let noHoursCount = 0;
         let invalidDateCount = 0;
         const missingEmployees = new Set();
         const missingProjects = new Set();
+        const duplicateDetails = [];
 
         for (const row of data) {
             const employeeCode = String(row['Employee Code'] || '').trim();
             const projectCode = String(row['Project Code'] || '').trim();
+            const projectName = String(row['Project Name'] || '').trim();
+            // ✅ NEW: Get client name from Excel
+            const clientName = String(row['Client Name'] || '').trim();
             
-            // Parse dates using the simple function
             const fromDate = parseDate(row['From Date']);
             const toDate = parseDate(row['To Date']);
             
@@ -107,19 +171,15 @@ const uploadTimesheet = async (req, res, next) => {
             const projectId = projectCode ? projectMap.get(projectCode) || null : null;
             
             if (employeeCode && !employeeId) {
-                employeeNotFoundCount++;
                 missingEmployees.add(employeeCode);
             }
+            
             if (projectCode && !projectId) {
-                projectNotFoundCount++;
                 missingProjects.add(projectCode);
             }
 
-            // Process Monday to Friday
             const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
             let hasEntries = false;
-
-            // Use the parsed date parts
             const baseYear = fromDate.year;
             const baseMonth = fromDate.month;
             const baseDay = fromDate.day;
@@ -131,26 +191,50 @@ const uploadTimesheet = async (req, res, next) => {
                 
                 if (hours > 0) {
                     hasEntries = true;
-                    totalEntries++;
                     
-                    // Create date using parts - NO TIMEZONE ISSUES
                     const entryDate = new Date(baseYear, baseMonth, baseDay + i);
                     const formattedDate = 
                         entryDate.getFullYear() + '-' +
                         String(entryDate.getMonth() + 1).padStart(2, '0') + '-' +
                         String(entryDate.getDate()).padStart(2, '0');
                     
+                    // ─── Check for duplicate ────────────────────────
+                    const existingEntry = await query(
+                        `SELECT id, hours FROM timesheet_entries 
+                         WHERE original_emp_code = ? 
+                         AND original_project_code = ? 
+                         AND entry_date = ? 
+                         AND day_of_week = ?`,
+                        [employeeCode, projectCode, formattedDate, day]
+                    );
+                    
+                    if (existingEntry.length > 0) {
+                        duplicateEntries++;
+                        duplicateDetails.push({
+                            employee_code: employeeCode,
+                            project_code: projectCode,
+                            date: formattedDate,
+                            day: day,
+                            hours: hours,
+                            existing_hours: existingEntry[0].hours
+                        });
+                        continue;
+                    }
+                    
+                    totalEntries++;
+                    
                     let reconStatus = 'pending';
                     if (!employeeId) reconStatus = 'missing_employee';
                     else if (!projectId) reconStatus = 'missing_project';
                     
+                    // ✅ UPDATED INSERT with original_client_name
                     await query(
                         `INSERT INTO timesheet_entries 
-                         (batch_id, user_id, original_emp_code, project_id, original_project_code, 
+                         (batch_id, user_id, original_emp_code, project_id, original_project_code, original_project_name, original_client_name,
                           entry_date, hours, description, day_of_week, employee_found, project_found, reconciliation_status) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
-                            batchId, employeeId, employeeCode, projectId, projectCode,
+                            batchId, employeeId, employeeCode, projectId, projectCode, projectName, clientName,
                             formattedDate, hours, description, day,
                             employeeId ? 1 : 0, projectId ? 1 : 0, reconStatus
                         ]
@@ -161,6 +245,10 @@ const uploadTimesheet = async (req, res, next) => {
             if (!hasEntries) noHoursCount++;
         }
 
+        // ─── 7. Update Batch Counts ──────────────────────────────────
+        const employeeNotFoundCount = missingEmployees.size;
+        const projectNotFoundCount = missingProjects.size;
+        
         const totalInvalid = employeeNotFoundCount + projectNotFoundCount + invalidDateCount;
         await query(
             `UPDATE timesheet_batches 
@@ -169,14 +257,26 @@ const uploadTimesheet = async (req, res, next) => {
             [data.length - totalInvalid, totalInvalid, batchId]
         );
 
+        // ─── 8. Get Missing Projects ──────────────────────────────────
+        const projectNotFoundDetails = await query(`
+            SELECT DISTINCT original_project_code as project_code,
+                   original_project_name as project_name
+            FROM timesheet_entries
+            WHERE batch_id = ? AND project_found = 0
+        `, [batchId]);
+
+        // ─── 9. Response ──────────────────────────────────────────────
         res.status(200).json({
             success: true,
-            message: "Timesheet uploaded successfully.",
+            message: duplicateEntries > 0 
+                ? `Timesheet uploaded. ${duplicateEntries} duplicate entries skipped.`
+                : "Timesheet uploaded successfully.",
             data: {
                 batch_id: batchId,
                 batch_code: batchCode,
                 total_records: data.length,
                 total_entries_stored: totalEntries,
+                duplicate_entries: duplicateEntries,
                 status: 'draft'
             },
             warnings: {
@@ -197,8 +297,13 @@ const uploadTimesheet = async (req, res, next) => {
                 invalid_dates: {
                     count: invalidDateCount,
                     message: "Rows with invalid dates"
+                },
+                duplicates: {
+                    count: duplicateEntries,
+                    details: duplicateDetails.slice(0, 10)
                 }
-            }
+            },
+            missing_projects: projectNotFoundDetails
         });
 
     } catch (err) {
@@ -209,7 +314,6 @@ const uploadTimesheet = async (req, res, next) => {
         });
     }
 };
-
 // ============================================
 // GET ALL BATCHES
 // ============================================
@@ -254,13 +358,15 @@ const getBatchDetails = async (req, res, next) => {
             return res.status(404).json({ message: "Batch not found" });
         }
         
+        // ✅ Updated to include original_project_name
         const entries = await query(`
             SELECT 
                 te.*, 
                 u.name as employee_name, 
                 u.emp_id, 
                 p.project_name, 
-                p.project_code
+                p.project_code,
+                te.original_project_name  -- ✅ Now available
             FROM timesheet_entries te
             LEFT JOIN users u ON te.user_id = u.id
             LEFT JOIN projects p ON te.project_id = p.id

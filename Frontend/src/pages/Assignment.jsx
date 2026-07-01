@@ -72,30 +72,72 @@ const EffortChip = ({ label, value, color }) => (
 
 // ── Assign Modal ──────────────────────────────────────────────────────────────
 const AssignModal = ({ modal, users, assignments, onAssign, onDelete, onClose }) => {
-  const [selUser,  setSelUser]  = useState("");
-  const [units,    setUnits]    = useState("");
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState("");
+  const [selUser, setSelUser] = useState("");
+  const [units, setUnits] = useState("");
+  const [days, setDays] = useState("");
+  const [hours, setHours] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   // Assignments already on this role+task
   const existing = assignments.filter(
     a => a.role === modal.role && a.task_name === modal.task_name
   );
 
-  const totalAssigned = existing.reduce((s, a) => s + Number(a.units_assigned), 0);
-  const remaining     = Math.max((modal.planned || 0) - totalAssigned, 0);
+  // Calculate totals
+  const totalAssignedUnits = existing.reduce((s, a) => s + Number(a.units_assigned), 0);
+  const totalAssignedDays = existing.reduce((s, a) => s + Number(a.estimated_days || 0), 0);
+  const totalAssignedHours = existing.reduce((s, a) => s + Number(a.estimated_hours || 0), 0);
+
+  const remainingUnits = Math.max((modal.planned_units || 0) - totalAssignedUnits, 0);
+  const remainingDays = Math.max((modal.estimated_days || 0) - totalAssignedDays, 0);
+  const remainingHours = Math.max((modal.estimated_hours || 0) - totalAssignedHours, 0);
+
+  // Check if any limit would be exceeded
+  const unitsExceeded = units && Number(units) > remainingUnits;
+  const daysExceeded = days && Number(days) > remainingDays;
+  const hoursExceeded = hours && Number(hours) > remainingHours;
 
   const handleSubmit = async () => {
-    if (!selUser)        return setError("Please select an employee.");
+    if (!selUser) return setError("Please select an employee.");
     if (!units || Number(units) <= 0) return setError("Enter units > 0.");
+
+    const requestedUnits = Number(units);
+    const requestedDays = days ? Number(days) : 0;
+    const requestedHours = hours ? Number(hours) : 0;
+
+    // Validate against remaining limits
+    if (requestedUnits > remainingUnits) {
+      setError(`Cannot assign ${requestedUnits} units. Only ${remainingUnits} units remaining.`);
+      return;
+    }
+    if (requestedDays > remainingDays) {
+      setError(`Cannot assign ${requestedDays} days. Only ${remainingDays} days remaining.`);
+      return;
+    }
+    if (requestedHours > remainingHours) {
+      setError(`Cannot assign ${requestedHours} hours. Only ${remainingHours} hours remaining.`);
+      return;
+    }
+
     setSaving(true);
     setError("");
     try {
-      await onAssign({ user_id: selUser, role: modal.role, task_name: modal.task_name, units_assigned: Number(units) });
+      await onAssign({
+        user_id: selUser,
+        role: modal.role,
+        task_name: modal.task_name,
+        units_assigned: requestedUnits,
+        estimated_days: requestedDays,
+        estimated_hours: requestedHours,
+      });
       setSelUser("");
       setUnits("");
+      setDays("");
+      setHours("");
     } catch (e) {
-      setError(e?.response?.data?.message || "Failed to assign.");
+      const errMsg = e?.response?.data?.message || "Failed to assign.";
+      setError(errMsg);
     } finally {
       setSaving(false);
     }
@@ -122,55 +164,108 @@ const AssignModal = ({ modal, users, assignments, onAssign, onDelete, onClose })
         {/* ── Load summary strip — UPDATED: Est. Days + Est. Hours added ── */}
         <div style={M.strip}>
           <div style={M.chip}>
-            <span style={M.chipLabel}>Planned</span>
-            <span style={{ ...M.chipVal, color: "#9b59b6" }}>{modal.planned ?? "—"}</span>
+            <span style={M.chipLabel}>Planned Units</span>
+            <span style={{ ...M.chipVal, color: "#9b59b6" }}>{modal.planned_units ?? "—"}</span>
           </div>
-          {/* NEW: show est days and hours from the task row */}
           <div style={M.chip}>
             <span style={M.chipLabel}>Est. Days</span>
-            <span style={{ ...M.chipVal, color: "#2c3e50" }}>{modal.estimated_days != null ? modal.estimated_days : "—"}</span>
+            <span style={{ ...M.chipVal, color: "#2c3e50" }}>{modal.estimated_days ?? "—"}</span>
           </div>
           <div style={M.chip}>
             <span style={M.chipLabel}>Est. Hours</span>
-            <span style={{ ...M.chipVal, color: "#2c3e50" }}>{modal.estimated_hours != null ? modal.estimated_hours : "—"}</span>
+            <span style={{ ...M.chipVal, color: "#2c3e50" }}>{modal.estimated_hours ?? "—"}</span>
           </div>
           <div style={M.chip}>
-            <span style={M.chipLabel}>Assigned</span>
-            <span style={{ ...M.chipVal, color: "#3498db" }}>{totalAssigned}</span>
+            <span style={M.chipLabel}>Assigned Units</span>
+            <span style={{ ...M.chipVal, color: "#3498db" }}>{totalAssignedUnits}</span>
+          </div>
+        </div>
+
+        {/* ── Remaining Strip ── */}
+        <div style={{ ...M.strip, background: "#e8f4fd" }}>
+          <div style={M.chip}>
+            <span style={M.chipLabel}>Remaining Units</span>
+            <span style={{ ...M.chipVal, color: remainingUnits === 0 ? "#27ae60" : "#e74c3c" }}>{remainingUnits}</span>
           </div>
           <div style={M.chip}>
-            <span style={M.chipLabel}>Remaining</span>
-            <span style={{ ...M.chipVal, color: remaining === 0 ? "#27ae60" : "#e74c3c" }}>{remaining}</span>
+            <span style={M.chipLabel}>Remaining Days</span>
+            <span style={{ ...M.chipVal, color: remainingDays === 0 ? "#27ae60" : "#e74c3c" }}>{remainingDays}</span>
+          </div>
+          <div style={M.chip}>
+            <span style={M.chipLabel}>Remaining Hours</span>
+            <span style={{ ...M.chipVal, color: remainingHours === 0 ? "#27ae60" : "#e74c3c" }}>{remainingHours}</span>
           </div>
         </div>
 
         {/* ── New assignment form ── */}
         <div style={M.formRow}>
-          <div style={{ flex: 2, minWidth: 160 }}>
+          <div style={{ flex: 2, minWidth: 140 }}>
             <label style={M.label}>Employee</label>
             <select value={selUser} onChange={e => { setSelUser(e.target.value); setError(""); }} style={M.select}>
               <option value="">Select employee…</option>
               {users.map(emp => (
-                <option key={emp.employee_id} value={emp.employee_id}>{emp.emp_name}</option>
+                <option key={emp.employee_id || emp.id} value={emp.employee_id || emp.id}>
+                  {emp.emp_name || emp.name}
+                </option>
               ))}
             </select>
           </div>
-          <div style={{ flex: 1, minWidth: 100 }}>
+          <div style={{ flex: 1, minWidth: 70 }}>
             <label style={M.label}>Units</label>
             <input
-              type="number" min="1" max={remaining || undefined}
-              placeholder={remaining > 0 ? `Max ${remaining}` : "0"}
+              type="number"
+              min="1"
+              max={remainingUnits || undefined}
+              placeholder={remainingUnits > 0 ? `Max ${remainingUnits}` : "0"}
               value={units}
               onChange={e => { setUnits(e.target.value); setError(""); }}
-              style={M.input}
+              style={{ ...M.input, borderColor: unitsExceeded ? "#e74c3c" : "#ddd" }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 70 }}>
+            <label style={M.label}>Days</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={days}
+              onChange={e => { setDays(e.target.value); setError(""); }}
+              style={{ ...M.input, borderColor: daysExceeded ? "#e74c3c" : "#ddd" }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 70 }}>
+            <label style={M.label}>Hours</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="0"
+              value={hours}
+              onChange={e => { setHours(e.target.value); setError(""); }}
+              style={{ ...M.input, borderColor: hoursExceeded ? "#e74c3c" : "#ddd" }}
             />
           </div>
           <div style={{ alignSelf: "flex-end" }}>
-            <button onClick={handleSubmit} style={M.assignBtn} disabled={saving}>
+            <button
+              onClick={handleSubmit}
+              style={{
+                ...M.assignBtn,
+                opacity: (saving || unitsExceeded || daysExceeded || hoursExceeded || remainingUnits === 0) ? 0.5 : 1,
+                cursor: (saving || unitsExceeded || daysExceeded || hoursExceeded || remainingUnits === 0) ? "not-allowed" : "pointer",
+              }}
+              disabled={saving || unitsExceeded || daysExceeded || hoursExceeded || remainingUnits === 0}
+            >
               {saving ? "Saving…" : "Assign"}
             </button>
           </div>
         </div>
+
+        {(unitsExceeded || daysExceeded || hoursExceeded) && (
+          <div style={{ ...M.error, marginTop: 4 }}>
+            ⚠️ Values exceed remaining limits. Please adjust.
+          </div>
+        )}
 
         {error && <p style={M.error}>{error}</p>}
 
@@ -184,37 +279,45 @@ const AssignModal = ({ modal, users, assignments, onAssign, onDelete, onClose })
               <thead>
                 <tr>
                   <th style={{ ...M.th, textAlign: "left" }}>Employee</th>
-                  <th style={M.th}>Units Assigned</th>
-                  <th style={M.th}>Units Completed</th>
-                  <th style={M.th}>Units Pending</th>
+                  <th style={M.th}>Units</th>
+                  <th style={M.th}>Days</th>
+                  <th style={M.th}>Hours</th>
+                  <th style={M.th}>Completed</th>
+                  <th style={M.th}>Pending</th>
                   <th style={M.th}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {existing.map((a, i) => {
                   const completed = Number(a.units_completed || 0);
-                  const pending   = Math.max(Number(a.units_assigned) - completed, 0);
+                  const pending = Math.max(Number(a.units_assigned) - completed, 0);
                   return (
-                  <tr key={a.id} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
-                    <td style={M.td}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={M.avatar}>{a.user_name?.[0]?.toUpperCase() || "?"}</div>
-                        <strong>{a.user_name}</strong>
-                      </div>
-                    </td>
-                    <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#3498db" }}>
-                      {a.units_assigned}
-                    </td>
-                    <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#27ae60" }}>
-                      {completed}
-                    </td>
-                    <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: pending === 0 ? "#27ae60" : "#e74c3c" }}>
-                      {pending}
-                    </td>
-                    <td style={M.td}>
-                      <button onClick={() => onDelete(a.id)} style={M.removeBtn}>Remove</button>
-                    </td>
-                  </tr>
+                    <tr key={a.id} style={{ background: i % 2 === 0 ? "#fff" : "#fafbfc" }}>
+                      <td style={M.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={M.avatar}>{a.user_name?.[0]?.toUpperCase() || "?"}</div>
+                          <strong>{a.user_name}</strong>
+                        </div>
+                      </td>
+                      <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#3498db" }}>
+                        {a.units_assigned}
+                      </td>
+                      <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#2c3e50" }}>
+                        {a.estimated_days || 0}
+                      </td>
+                      <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#2c3e50" }}>
+                        {a.estimated_hours || 0}
+                      </td>
+                      <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: "#27ae60" }}>
+                        {completed}
+                      </td>
+                      <td style={{ ...M.td, textAlign: "center", fontWeight: 700, color: pending === 0 ? "#27ae60" : "#e74c3c" }}>
+                        {pending}
+                      </td>
+                      <td style={M.td}>
+                        <button onClick={() => onDelete(a.id)} style={M.removeBtn}>Remove</button>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>
@@ -363,30 +466,79 @@ const AssignmentScreen = () => {
     finally { setSavingLoad(false); }
   };
 
-  // ── Open the assign modal — CHANGED: also passes estimated_days/hours ─────
-  const openAssignModal = (role, task) => {
-    const key   = `${role}||${task.task_name}`;
-    const entry = loadDraft[key] || {};
-    setAssignModal({
-      role,
-      task_name:       task.task_name,
-      unit_type:       task.unit_type,
-      planned:         Number(entry.planned_units)   || 0,
-      estimated_days:  entry.estimated_days  !== "" ? Number(entry.estimated_days)  : null, // NEW
-      estimated_hours: entry.estimated_hours !== "" ? Number(entry.estimated_hours) : null, // NEW
-    });
-  };
+  // ── Open the assign modal ─────────────────────────────────────────────────────
+const openAssignModal = async (role, task) => {
+  const key = `${role}||${task.task_name}`;
+  const entry = loadDraft[key] || {};
+  
+  const plannedUnits = Number(entry.planned_units) || 0;
+  const estimatedDays = Number(entry.estimated_days) || 0;
+  const estimatedHours = Number(entry.estimated_hours) || 0;
 
-  // ── Add assignment (called from modal) — UNCHANGED ────────────────────────
-  const handleAddAssignment = async ({ user_id, role, task_name, units_assigned }) => {
+  // ─── Step 1: Save task load first ────────────────────────────
+  if (plannedUnits > 0 || estimatedDays > 0 || estimatedHours > 0) {
+    try {
+      await axios.post(
+        `${BASE_URL}/api/assignments/task-loads/bulk`,
+        {
+          project_id: selProject,
+          loads: [{
+            role,
+            task_name: task.task_name,
+            planned_units: plannedUnits,
+            estimated_days: estimatedDays,
+            estimated_hours: estimatedHours,
+          }]
+        },
+        { headers: getHeaders() }
+      );
+      // Refresh data after saving
+      await fetchProjectData(selProject);
+    } catch (err) {
+      alert("Failed to save task load. Please try again.");
+      return;
+    }
+  }
+
+  // ─── Step 2: Open the assign modal ────────────────────────────
+  setAssignModal({
+    role,
+    task_name: task.task_name,
+    unit_type: task.unit_type,
+    planned_units: plannedUnits,
+    estimated_days: estimatedDays,
+    estimated_hours: estimatedHours,
+  });
+};
+
+// ── Add assignment (called from modal) ────────────────────────────────────────
+const handleAddAssignment = async ({ 
+  user_id, 
+  role, 
+  task_name, 
+  units_assigned,
+  estimated_days,
+  estimated_hours 
+}) => {
+  try {
     await axios.post(
       `${BASE_URL}/api/assignments`,
-      { project_id: selProject, user_id, role, task_name, units_assigned },
+      {
+        project_id: selProject,
+        user_id,
+        role,
+        task_name,
+        units_assigned,
+        estimated_days: estimated_days || 0,
+        estimated_hours: estimated_hours || 0,
+      },
       { headers: getHeaders() }
     );
     await fetchProjectData(selProject);
-    // Keep modal open — admin may want to assign multiple people
-  };
+  } catch (err) {
+    throw err;
+  }
+};
 
   // ── Delete assignment (called from modal) — UNCHANGED ────────────────────
   const handleDelete = async (id) => {
@@ -569,7 +721,7 @@ console.log("Redux employees:", serviceDeliveryEmployees);
                             <td style={S.td}>
                               <StatusBadge assigned={assigned} planned={planned} />
                             </td>
-                            {/* Assign button per row — UNCHANGED */}
+                            {/* Assign button per row — NOW SAVES LOAD FIRST */}
                             <td style={S.td}>
                               <button
                                 onClick={() => openAssignModal(role, t)}
@@ -602,7 +754,7 @@ console.log("Redux employees:", serviceDeliveryEmployees);
       )}
 
       {/* ── Inline Assign Modal — UNCHANGED ── */}
-      {assignModal && (
+      {/* {assignModal && (
         <AssignModal
           modal={assignModal}
           users={serviceDeliveryEmployees}
@@ -611,7 +763,19 @@ console.log("Redux employees:", serviceDeliveryEmployees);
           onDelete={handleDelete}
           onClose={() => setAssignModal(null)}
         />
-      )}
+      )} */}
+
+      {/* ── Inline Assign Modal ── */}
+{assignModal && (
+  <AssignModal
+    modal={assignModal}
+    users={users}  // ← USE THIS INSTEAD (from user table)
+    assignments={assignments}
+    onAssign={handleAddAssignment}
+    onDelete={handleDelete}
+    onClose={() => setAssignModal(null)}
+  />
+)}
     </div>
   );
 };

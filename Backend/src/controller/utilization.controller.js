@@ -8,8 +8,22 @@ const { createNotification } = require("./notification.controller");
 // ─────────────────────────────────────────────────────────────────────────────
 const getMyAssignments = async (req, res, next) => {
   try {
-    const { userId } = req.query;
-    if (!userId) return res.status(400).json({ message: "userId required" });
+    let { userId } = req.query;
+
+    if (!userId || userId === "null" || userId === "undefined") {
+      const empId = req.user?.emp_id;
+      if (empId) {
+        const rows = await query("SELECT id FROM users WHERE emp_id = ?", [empId]);
+        if (rows && rows.length > 0) {
+          userId = rows[0].id;
+          console.log(`ℹ️ Resolved userId for getMyAssignments from token: ${userId}`);
+        }
+      }
+    }
+
+    if (!userId || userId === "null" || userId === "undefined") {
+      return res.status(400).json({ message: "userId required" });
+    }
 
     const sql = `
       SELECT
@@ -52,11 +66,22 @@ const getMyAssignments = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const logProgress = async (req, res, next) => {
   try {
-    const { 
+    let { 
       assignment_id, user_id, date, units_completed, 
       todays_tasks, total_time_needed, yesterdays_tasks, risks,
       project_id, role, task_name
     } = req.body;
+
+    if (!user_id || user_id === "null" || user_id === "undefined") {
+      const empId = req.user?.emp_id;
+      if (empId) {
+        const rows = await query("SELECT id FROM users WHERE emp_id = ?", [empId]);
+        if (rows && rows.length > 0) {
+          user_id = rows[0].id;
+          console.log(`ℹ️ Resolved user_id for logProgress from token: ${user_id}`);
+        }
+      }
+    }
 
     if (!assignment_id || !user_id || !date) {
       return res.status(400).json({ message: "assignment_id, user_id and date are required" });

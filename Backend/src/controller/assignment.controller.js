@@ -366,51 +366,167 @@ const getAssignmentsByProject = async (req, res, next) => {
 // POST /api/assignments
 const addAssignment = async (req, res, next) => {
   try {
-    const { project_id, user_id, role, task_name, units_assigned } = req.body;
+    const { 
+      project_id, 
+      user_id, 
+      role, 
+      task_name, 
+      units_assigned,
+      estimated_hours,
+      estimated_days
+    } = req.body;
+    
+    // ─── Validation ──────────────────────────────────────────────
     if (!project_id || !user_id || !role || !task_name) {
-      return res.status(400).json({ message: "project_id, user_id, role, task_name required" });
+      return res.status(400).json({ 
+        message: "project_id, user_id, role, task_name required" 
+      });
     }
-    const result = await query(
-      `INSERT INTO assignments (project_id, user_id, role, task_name, units_assigned) VALUES (?, ?, ?, ?, ?)`,
-      [project_id, user_id, role, task_name, units_assigned || 0]
+
+    // ─── VALIDATION: Check if assignment exceeds task limits ────
+    
+    // 1. Get task load for this role + task
+    const taskLoad = await query(
+      `SELECT 
+         planned_units, 
+         estimated_days, 
+         estimated_hours 
+       FROM project_task_loads 
+       WHERE project_id = ? AND role = ? AND task_name = ?`,
+      [project_id, role, task_name]
     );
-   const rows = await query(
-  `SELECT
-      a.*,
-      u.name AS user_name,
-      p.project_name,
 
-      ee.effort_days,
-      ee.effort_hrs,
-      ee.buffer_days,
-      ee.buffer_hrs,
-      ee.total_hrs,
-      ee.units,
-      ee.unit_label
+    if (taskLoad.length === 0) {
+      return res.status(400).json({
+        message: `No task load found for ${role} - ${task_name}. Please define task load first.`
+      });
+    }
 
-   FROM assignments a
+    const plannedUnits = Number(taskLoad[0].planned_units) || 0;
+    const plannedDays = Number(taskLoad[0].estimated_days) || 0;
+    const plannedHours = Number(taskLoad[0].estimated_hours) || 0;
 
-   LEFT JOIN users u
-     ON a.user_id = u.id
+    // 2. Get currently assigned totals for this task
+    const assignedTotals = await query(
+      `SELECT 
+         SUM(units_assigned) as total_units,
+         SUM(estimated_days) as total_days,
+         SUM(estimated_hours) as total_hours
+       FROM assignments 
+       WHERE project_id = ? AND role = ? AND task_name = ?`,
+      [project_id, role, task_name]
+    );
 
-   LEFT JOIN projects p
-     ON a.project_id = p.id
+    const currentUnits = Number(assignedTotals[0]?.total_units || 0);
+    const currentDays = Number(assignedTotals[0]?.total_days || 0);
+    const currentHours = Number(assignedTotals[0]?.total_hours || 0);
 
-   LEFT JOIN effort_estimates ee
-     ON ee.project_id = a.project_id
-    AND ee.role = a.role
+    const newUnits = Number(units_assigned || 0);
+    const newDays = Number(estimated_days || 0);
+    const newHours = Number(estimated_hours || 0);
 
-   WHERE a.id = ?`,
-  [result.insertId]
-);
+    // 3. Check if any limit would be exceeded
+    const errors = [];
+    let wouldExceed = false;
+
+    if (plannedUnits > 0 && (currentUnits + newUnits) > plannedUnits) {
+      errors.push({
+        field: 'units',
+        message: `Cannot assign ${newUnits} units. Total would exceed planned units (${plannedUnits}). Remaining: ${plannedUnits - currentUnits}`,
+        planned: plannedUnits,
+        assigned: currentUnits,
+        requested: newUnits,
+        remaining: plannedUnits - currentUnits
+      });
+      wouldExceed = true;
+    }
+
+    if (plannedDays > 0 && (currentDays + newDays) > plannedDays) {
+      errors.push({
+        field: 'days',
+        message: `Cannot assign ${newDays} days. Total would exceed planned days (${plannedDays}). Remaining: ${plannedDays - currentDays}`,
+        planned: plannedDays,
+        assigned: currentDays,
+        requested: newDays,
+        remaining: plannedDays - currentDays
+      });
+      wouldExceed = true;
+    }
+
+    if (plannedHours > 0 && (currentHours + newHours) > plannedHours) {
+      errors.push({
+        field: 'hours',
+        message: `Cannot assign ${newHours} hours. Total would exceed planned hours (${plannedHours}). Remaining: ${plannedHours - currentHours}`,
+        planned: plannedHours,
+        assigned: currentHours,
+        requested: newHours,
+        remaining: plannedHours - currentHours
+      });
+      wouldExceed = true;
+    }
+
+    if (wouldExceed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assignment would exceed task limits',
+        errors: errors
+      });
+    }
+
+    // ─── Insert assignment ──────────────────────────────────────
+    const result = await query(
+      `INSERT INTO assignments 
+       (project_id, user_id, role, task_name, units_assigned, estimated_days, estimated_hours) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [project_id, user_id, role, task_name, newUnits, newDays, newHours]
+    );
+
+    // ─── Fetch the created assignment ──────────────────────────
+    const rows = await query(
+      `SELECT
+          a.*,
+          u.name AS user_name,
+          p.project_name,
+          ee.effort_days,
+          ee.effort_hrs,
+          ee.buffer_days,
+          ee.buffer_hrs,
+          ee.total_hrs,
+          ee.units,
+          ee.unit_label
+       FROM assignments a
+       LEFT JOIN users u ON a.user_id = u.id
+       LEFT JOIN projects p ON a.project_id = p.id
+       LEFT JOIN effort_estimates ee ON ee.project_id = a.project_id AND ee.role = a.role
+       WHERE a.id = ?`,
+      [result.insertId]
+    );
+
     const assignment = rows[0];
+
+    // ─── Create Notification ────────────────────────────────────
     await createNotification({
-      user_id, type: 'assignment_created',
+      user_id,
+      type: 'assignment_created',
       title: `New assignment on ${assignment.project_name}`,
-      message: `You have been assigned ${units_assigned || 0} unit(s) of "${task_name}" (${role}) on "${assignment.project_name}".`,
+      message: `You have been assigned ${newUnits} unit(s) of "${task_name}" (${role}) on "${assignment.project_name}". (${newDays} days, ${newHours} hours)`,
     });
-    return res.status(201).json(assignment);
-  } catch (err) { return next(err); }
+
+    // ─── Return response ────────────────────────────────────────
+    return res.status(201).json({
+      success: true,
+      message: 'Assignment created successfully',
+      data: assignment,
+      remaining: {
+        units: plannedUnits - (currentUnits + newUnits),
+        days: plannedDays - (currentDays + newDays),
+        hours: plannedHours - (currentHours + newHours)
+      }
+    });
+
+  } catch (err) { 
+    return next(err); 
+  }
 };
 
 // PUT /api/assignments/:id
