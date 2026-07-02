@@ -74,38 +74,40 @@ const getReconFilters = async (req, res, next) => {
         res.status(500).json({ message: err.message });
     }
 };
-
 // ──────────────────────────────────────────────────────────────
-// 2. GET DASHBOARD SUMMARY
+// 2. GET DASHBOARD SUMMARY (FIXED - SAME LOGIC AS PROJECT LEVEL)
 // ──────────────────────────────────────────────────────────────
 const getReconDashboard = async (req, res, next) => {
     try {
-        // Get ALL unique projects from timesheet_entries
+        // ─── Get ALL unique projects from timesheet_entries ──────────
         const timesheetProjectsQuery = `
-            SELECT DISTINCT 
+            SELECT 
                 te.original_project_code,
-                te.original_project_name,
-                CASE WHEN p.id IS NOT NULL THEN 1 ELSE 0 END as in_system,
-                CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate,
+                MAX(te.original_project_name) as original_project_name,
+                MAX(CASE WHEN p.id IS NOT NULL THEN 1 ELSE 0 END) as in_system,
+                MAX(CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END) as has_estimate,
                 COALESCE(SUM(te.hours), 0) as actual_hours
             FROM timesheet_entries te
             LEFT JOIN projects p ON p.project_code = te.original_project_code
             LEFT JOIN effort_estimates ee ON ee.project_id = p.id
-            GROUP BY te.original_project_code, te.original_project_name, p.id, ee.id
+            GROUP BY te.original_project_code
             HAVING COALESCE(SUM(te.hours), 0) > 0
         `;
         const timesheetProjects = await query(timesheetProjectsQuery, []);
         
-        // Get ALL projects from projects table
+        // ─── Get ALL projects from projects table ──────────────────
         const systemProjectsQuery = `
-            SELECT p.id, p.project_code, p.project_name,
-                   CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate
+            SELECT 
+                p.id, 
+                p.project_code, 
+                p.project_name,
+                CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate
             FROM projects p
             LEFT JOIN effort_estimates ee ON ee.project_id = p.id
         `;
         const systemProjects = await query(systemProjectsQuery, []);
         
-        // Combine: System projects + Timesheet projects not in system
+        // ─── Combine projects ──────────────────────────────────────
         const systemProjectCodes = new Set(systemProjects.map(p => p.project_code));
         const combinedProjects = new Map();
         
@@ -115,7 +117,8 @@ const getReconDashboard = async (req, res, next) => {
                 project_name: p.project_name,
                 in_system: true,
                 has_estimate: p.has_estimate === 1,
-                actual_hours: 0
+                actual_hours: 0,
+                estimated_hours: 0
             });
         });
         
@@ -130,23 +133,56 @@ const getReconDashboard = async (req, res, next) => {
                     project_name: p.original_project_name || p.original_project_code,
                     in_system: false,
                     has_estimate: false,
-                    actual_hours: parseFloat(p.actual_hours || 0)
+                    actual_hours: parseFloat(p.actual_hours || 0),
+                    estimated_hours: 0
                 });
             }
         });
         
-        const allProjects = Array.from(combinedProjects.values());
+        // ─── Get estimated hours for projects ──────────────────────
+        const estimatedData = await query(`
+            SELECT 
+                p.project_code,
+                COALESCE(SUM(ee.total_hrs), 0) as estimated_hours
+            FROM projects p
+            LEFT JOIN effort_estimates ee ON ee.project_id = p.id
+            GROUP BY p.project_code
+        `);
+        
+        const estimatedMap = new Map();
+        estimatedData.forEach(e => {
+            estimatedMap.set(e.project_code, parseFloat(e.estimated_hours || 0));
+        });
+        
+        // ─── Update combined projects with estimated hours ──────────
+        const allProjects = Array.from(combinedProjects.values()).map(p => {
+            const estimated = estimatedMap.get(p.project_code) || 0;
+            return {
+                ...p,
+                estimated_hours: estimated
+            };
+        });
+        
         const totalProjects = allProjects.length;
         
         let projectsWithEstimates = 0;
         let projectsWithoutEstimates = 0;
         let projectsWithTimesheets = 0;
         let projectsWithoutTimesheets = 0;
-        let totalActualHours = 0;
         
+        // ─── ✅ Calculate total actual hours from timesheet_entries directly ──
+        const totalActualResult = await query(`
+            SELECT COALESCE(SUM(hours), 0) as total_hours
+            FROM timesheet_entries
+        `);
+        const totalActualHours = parseFloat(totalActualResult[0]?.total_hours || 0);
+        
+        // ─── Get total estimated hours from effort_estimates ────
+        const estimatedResult = await query(`SELECT COALESCE(SUM(total_hrs), 0) as total FROM effort_estimates`, []);
+        const totalEstimatedFromTable = parseFloat(estimatedResult[0]?.total || 0);
+        
+        // ─── Calculate metrics ──────────────────────────────────────
         allProjects.forEach(p => {
-            totalActualHours += p.actual_hours;
-            
             if (p.in_system) {
                 if (p.has_estimate) {
                     projectsWithEstimates++;
@@ -164,39 +200,40 @@ const getReconDashboard = async (req, res, next) => {
             }
         });
         
-        // Get total estimated hours
-        const estimatedResult = await query(`SELECT COALESCE(SUM(total_hrs), 0) as total FROM effort_estimates`, []);
-        const totalEstimatedHours = parseFloat(estimatedResult[0]?.total || 0);
+        // ─── ✅ Calculate over/under utilized (SAME LOGIC AS PROJECT LEVEL) ──
+        let overutilized = 0;
+        let underutilized = 0;
         
-        // Get total employees
+        const projectWithEstimates = allProjects.filter(p => p.has_estimate && p.estimated_hours > 0);
+        
+        for (const p of projectWithEstimates) {
+            // Get actual hours using both project_id and original_project_code
+            const actualResult = await query(`
+                SELECT COALESCE(SUM(hours), 0) as actual_hours
+                FROM timesheet_entries
+                WHERE project_id = (SELECT id FROM projects WHERE project_code = ?)
+                   OR original_project_code = ?
+            `, [p.project_code, p.project_code]);
+            
+            const actualHrs = parseFloat(actualResult[0]?.actual_hours || 0);
+            const variancePct = ((p.estimated_hours - actualHrs) / p.estimated_hours) * 100;
+            
+            // ✅ SAME LOGIC AS PROJECT LEVEL API
+            // If variancePct < 0 → Over Utilized (Actual > Estimated)
+            // If variancePct > 0 → Under Utilized (Estimated > Actual)
+            if (variancePct < 0) {
+                overutilized++;
+            } else if (variancePct > 0) {
+                underutilized++;
+            }
+        }
+        
+        // ─── Get total employees ──────────────────────────────────
         const employeesResult = await query(
             `SELECT COUNT(DISTINCT user_id) as count FROM timesheet_entries WHERE user_id IS NOT NULL`, 
             []
         );
         const totalEmployees = parseInt(employeesResult[0]?.count || 0);
-        
-        // Get over/under utilized
-        const utilStats = await query(`
-            SELECT 
-                p.id,
-                COALESCE((SELECT SUM(total_hrs) FROM effort_estimates WHERE project_id = p.id), 0) as estimated_hrs,
-                COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = p.id), 0) as actual_hrs
-            FROM projects p
-            WHERE EXISTS (SELECT 1 FROM effort_estimates WHERE project_id = p.id)
-        `, []);
-        
-        let overutilized = 0;
-        let underutilized = 0;
-        
-        utilStats.forEach(p => {
-            const estimated = parseFloat(p.estimated_hrs || 0);
-            const actual = parseFloat(p.actual_hrs || 0);
-            if (estimated > 0) {
-                const variancePct = ((estimated - actual) / estimated) * 100;
-                if (variancePct < -20) overutilized++;
-                else if (variancePct > 20) underutilized++;
-            }
-        });
         
         res.status(200).json({
             total_projects: totalProjects,
@@ -205,9 +242,9 @@ const getReconDashboard = async (req, res, next) => {
             projects_with_timesheets: projectsWithTimesheets,
             projects_without_timesheets: projectsWithoutTimesheets,
             total_employees: totalEmployees,
-            total_estimated_hours: totalEstimatedHours,
+            total_estimated_hours: totalEstimatedFromTable,
             total_actual_hours: totalActualHours,
-            total_variance_hours: totalEstimatedHours - totalActualHours,
+            total_variance_hours: totalEstimatedFromTable - totalActualHours,
             overutilized_count: overutilized,
             underutilized_count: underutilized
         });
@@ -218,27 +255,27 @@ const getReconDashboard = async (req, res, next) => {
     }
 };
 // ──────────────────────────────────────────────────────────────
-// 3. GET PROJECT LEVEL RECONCILIATION (FILTERS FIXED)
+// 3. GET PROJECT LEVEL RECONCILIATION (COMPLETE FIX)
 // ──────────────────────────────────────────────────────────────
 const getProjectLevelRecon = async (req, res, next) => {
     try {
         const { month, year, clientName, projectCode, projectName, employeeName, department, reportingManager } = req.query;
         
-        // ─── Build base WHERE conditions ──────────────────────────
-        let baseConditions = [];
-        let baseParams = [];
+        // ─── Build date conditions ──────────────────────────────────
+        let dateConditions = [];
+        let dateParams = [];
         
         if (month) {
-            baseConditions.push('MONTH(te.entry_date) = ?');
-            baseParams.push(parseInt(month));
+            dateConditions.push('MONTH(te.entry_date) = ?');
+            dateParams.push(parseInt(month));
         }
         if (year) {
-            baseConditions.push('YEAR(te.entry_date) = ?');
-            baseParams.push(parseInt(year));
+            dateConditions.push('YEAR(te.entry_date) = ?');
+            dateParams.push(parseInt(year));
         }
         
-        const baseWhereClause = baseConditions.length > 0 
-            ? `AND ${baseConditions.join(' AND ')}` 
+        const dateWhereClause = dateConditions.length > 0 
+            ? `AND ${dateConditions.join(' AND ')}` 
             : '';
         
         // ─── Get System Projects ──────────────────────────────────
@@ -270,8 +307,7 @@ const getProjectLevelRecon = async (req, res, next) => {
             ? `WHERE ${systemWhere.join(' AND ')}` 
             : 'WHERE 1=1';
         
-        // ─── System Projects ──────────────────────────────────────
-        // ✅ FIX: Remove employee filter from subquery (it doesn't have u table joined)
+        // ─── Get System Projects with subqueries ──────────────────
         const systemProjects = await query(`
             SELECT 
                 p.id as project_id,
@@ -279,8 +315,8 @@ const getProjectLevelRecon = async (req, res, next) => {
                 p.project_name,
                 p.client_name,
                 COALESCE((SELECT SUM(total_hrs) FROM effort_estimates WHERE project_id = p.id), 0) as estimated_hours,
-                COALESCE((SELECT SUM(hours) FROM timesheet_entries te WHERE te.project_id = p.id), 0) as actual_hours,
-                COALESCE((SELECT COUNT(DISTINCT te.user_id) FROM timesheet_entries te WHERE te.project_id = p.id), 0) as employee_count,
+                COALESCE((SELECT SUM(hours) FROM timesheet_entries te WHERE te.project_id = p.id ${dateWhereClause}), 0) as actual_hours,
+                COALESCE((SELECT COUNT(DISTINCT te.user_id) FROM timesheet_entries te WHERE te.project_id = p.id ${dateWhereClause}), 0) as employee_count,
                 1 as in_system,
                 CASE WHEN EXISTS (SELECT 1 FROM effort_estimates WHERE project_id = p.id) THEN 1 ELSE 0 END as has_estimate
             FROM projects p
@@ -289,6 +325,7 @@ const getProjectLevelRecon = async (req, res, next) => {
         `, systemParams);
         
         // ─── Apply employee filter for system projects ──────────
+        let filteredSystemProjects = systemProjects;
         if (employeeName) {
             const empProjectIds = await query(`
                 SELECT DISTINCT te.project_id 
@@ -300,8 +337,7 @@ const getProjectLevelRecon = async (req, res, next) => {
             
             const empProjectIdSet = new Set(empProjectIds.map(r => r.project_id));
             
-            // Keep only projects where employee worked
-            systemProjects = systemProjects.filter(p => {
+            filteredSystemProjects = systemProjects.filter(p => {
                 return empProjectIdSet.has(p.project_id);
             });
         }
@@ -345,17 +381,17 @@ const getProjectLevelRecon = async (req, res, next) => {
             ? `AND ${timesheetWhere.join(' AND ')}` 
             : '';
         
+        // ✅ Fix: Remove ee.id from SELECT and use proper grouping
         let timesheetQuery = `
             SELECT 
-                NULL as project_id,
                 te.original_project_code as project_code,
                 MAX(te.original_project_name) as project_name,
                 MAX(te.original_client_name) as client_name,
-                0 as estimated_hours,
                 COALESCE(SUM(te.hours), 0) as actual_hours,
                 COUNT(DISTINCT te.user_id) as employee_count,
                 0 as in_system,
-                0 as has_estimate
+                0 as has_estimate,
+                NULL as project_id
             FROM timesheet_entries te
             ${employeeJoin}
             WHERE te.project_id IS NULL
@@ -365,10 +401,37 @@ const getProjectLevelRecon = async (req, res, next) => {
         
         const timesheetProjects = await query(timesheetQuery, timesheetParams);
         
-        // ─── Combine results ──────────────────────────────────────
-        let allProjects = [...systemProjects, ...timesheetProjects];
+        // ─── Combine results using Map to deduplicate ──────────────
+        const projectMap = new Map();
+        
+        // Add system projects first
+        filteredSystemProjects.forEach(p => {
+            const key = p.project_code;
+            projectMap.set(key, p);
+        });
+        
+        // Add/merge timesheet projects
+        timesheetProjects.forEach(p => {
+            const key = p.project_code;
+            if (projectMap.has(key)) {
+                // Merge: update actual_hours and employee_count if timesheet has data
+                const existing = projectMap.get(key);
+                if (p.actual_hours > 0) {
+                    existing.actual_hours = p.actual_hours;
+                    existing.employee_count = p.employee_count;
+                }
+                projectMap.set(key, existing);
+            } else {
+                // Only add if project doesn't exist in system
+                if (!p.in_system) {
+                    projectMap.set(key, p);
+                }
+            }
+        });
         
         // ─── Reporting Manager filter (post-filter) ──────────────
+        let allProjects = Array.from(projectMap.values());
+        
         if (reportingManager) {
             allProjects = allProjects.filter(p => 
                 p.client_name && p.client_name.toLowerCase().includes(reportingManager.toLowerCase())
@@ -376,21 +439,28 @@ const getProjectLevelRecon = async (req, res, next) => {
         }
         
         const result = allProjects.map(p => {
-            const estimated = parseFloat(p.estimated_hours || 0);
-            const actual = parseFloat(p.actual_hours || 0);
-            const variance = estimated - actual;
-            const variancePct = estimated > 0 ? (variance / estimated) * 100 : 0;
-            
-            let status = 'On Track';
-            if (!p.in_system) {
-                status = 'Project Not Found';
-            } else if (estimated === 0) {
-                status = 'No Estimate';
-            } else if (variancePct < -20) {
-                status = 'Over Utilized';
-            } else if (variancePct > 20) {
-                status = 'Under Utilized';
-            }
+            // ─── Status logic ─────────────────────────────────────────────
+const estimated = parseFloat(p.estimated_hours || 0);
+const actual = parseFloat(p.actual_hours || 0);
+const variance = estimated - actual;
+const variancePct = estimated > 0 ? (variance / estimated) * 100 : 0;
+
+let status = 'On Track';
+
+if (!p.in_system) {
+    status = 'Project Not Found';
+} else if (estimated === 0) {
+    status = 'No Estimate';
+} else if (variancePct < 0) {
+    // ✅ Negative variance means actual > estimated → OVER-UTILIZED
+    status = 'Over Utilized';
+} else if (variancePct > 20) {
+    status = 'Under Utilized';
+} else if (variancePct > 0) {
+    status = 'Under Utilized';
+} else {
+    status = 'On Track';
+}
             
             return {
                 project_id: p.project_id,
@@ -427,7 +497,7 @@ const getProjectLevelRecon = async (req, res, next) => {
     }
 };
 // ──────────────────────────────────────────────────────────────
-// 4. GET EMPLOYEE LEVEL RECONCILIATION (FIXED)
+// 4. GET EMPLOYEE LEVEL RECONCILIATION (COMPLETE FIX)
 // ──────────────────────────────────────────────────────────────
 const getEmployeeLevelRecon = async (req, res, next) => {
     try {
@@ -462,8 +532,8 @@ const getEmployeeLevelRecon = async (req, res, next) => {
             params.push(`%${employeeName}%`);
         }
         if (department) {
-            whereConditions.push('p.sub_category LIKE ?');
-            params.push(`%${department}%`);
+            whereConditions.push('(p.sub_category LIKE ? OR te.original_project_name LIKE ?)');
+            params.push(`%${department}%`, `%${department}%`);
         }
         if (reportingManager) {
             whereConditions.push('p.project_manager LIKE ?');
@@ -474,112 +544,165 @@ const getEmployeeLevelRecon = async (req, res, next) => {
             ? `WHERE ${whereConditions.join(' AND ')}` 
             : '';
         
-        // ─── QUERY 1: Get employees from timesheet_entries ──────────
-        const timesheetEmployees = await query(`
+        // ─── Query 1: Get ALL assignments ──────────────────────────────
+        let assignWhere = [];
+        let assignParams = [];
+        
+        if (clientName) {
+            assignWhere.push('p.client_name LIKE ?');
+            assignParams.push(`%${clientName}%`);
+        }
+        if (projectCode) {
+            assignWhere.push('p.project_code LIKE ?');
+            assignParams.push(`%${projectCode}%`);
+        }
+        if (projectName) {
+            assignWhere.push('p.project_name LIKE ?');
+            assignParams.push(`%${projectName}%`);
+        }
+        if (department) {
+            assignWhere.push('p.sub_category LIKE ?');
+            assignParams.push(`%${department}%`);
+        }
+        if (reportingManager) {
+            assignWhere.push('p.project_manager LIKE ?');
+            assignParams.push(`%${reportingManager}%`);
+        }
+        
+        const assignWhereClause = assignWhere.length > 0 
+            ? `AND ${assignWhere.join(' AND ')}` 
+            : '';
+        
+        const assignmentsData = await query(`
+            SELECT 
+                a.user_id,
+                u.emp_id as employee_code,
+                u.name as employee_name,
+                a.project_id,
+                p.project_code,
+                p.project_name,
+                p.client_name,
+                SUM(a.units_assigned) as assigned_units,
+                SUM(a.estimated_days) as assigned_days,
+                SUM(a.estimated_hours) as assigned_hours,
+                GROUP_CONCAT(DISTINCT a.role) as roles
+            FROM assignments a
+            LEFT JOIN users u ON a.user_id = u.id
+            LEFT JOIN projects p ON a.project_id = p.id
+            WHERE 1=1 ${assignWhereClause}
+            GROUP BY a.user_id, a.project_id, u.emp_id, u.name, p.project_code, p.project_name, p.client_name
+        `, assignParams);
+        
+        // ─── Query 2: Get ALL timesheet hours (including project_id = NULL) ──────────────
+        let timesheetWhere = [];
+        let timesheetParams = [];
+        
+        if (month) {
+            timesheetWhere.push('MONTH(te.entry_date) = ?');
+            timesheetParams.push(parseInt(month));
+        }
+        if (year) {
+            timesheetWhere.push('YEAR(te.entry_date) = ?');
+            timesheetParams.push(parseInt(year));
+        }
+        if (employeeName) {
+            timesheetWhere.push('u.name LIKE ?');
+            timesheetParams.push(`%${employeeName}%`);
+        }
+        if (projectCode) {
+            timesheetWhere.push('(p.project_code LIKE ? OR te.original_project_code LIKE ?)');
+            timesheetParams.push(`%${projectCode}%`, `%${projectCode}%`);
+        }
+        if (projectName) {
+            timesheetWhere.push('(p.project_name LIKE ? OR te.original_project_name LIKE ?)');
+            timesheetParams.push(`%${projectName}%`, `%${projectName}%`);
+        }
+        if (clientName) {
+            timesheetWhere.push('(p.client_name LIKE ? OR te.original_client_name LIKE ?)');
+            timesheetParams.push(`%${clientName}%`, `%${clientName}%`);
+        }
+        if (department) {
+            timesheetWhere.push('(p.sub_category LIKE ? OR te.original_project_name LIKE ?)');
+            timesheetParams.push(`%${department}%`, `%${department}%`);
+        }
+        
+        const timesheetWhereClause = timesheetWhere.length > 0 
+            ? `AND ${timesheetWhere.join(' AND ')}` 
+            : '';
+        
+        const timesheetData = await query(`
             SELECT 
                 te.user_id,
                 u.emp_id as employee_code,
                 u.name as employee_name,
-                p.id as project_id,
+                COALESCE(te.project_id, p.id) as project_id,
                 COALESCE(p.project_code, te.original_project_code) as project_code,
                 COALESCE(p.project_name, te.original_project_name) as project_name,
                 COALESCE(p.client_name, te.original_client_name) as client_name,
-                COALESCE(SUM(a.units_assigned), 0) as assigned_units,
-                COALESCE(SUM(a.estimated_days), 0) as assigned_days,
-                COALESCE(SUM(a.estimated_hours), 0) as assigned_hours,
                 COALESCE(SUM(te.hours), 0) as actual_hours,
-                COALESCE(ee.effort_days, 0) as role_effort_days,
-                COALESCE(ee.effort_hrs, 0) as role_effort_hours,
-                COALESCE(ee.total_hrs, 0) as role_total_hrs,
-                GROUP_CONCAT(DISTINCT a.role) as roles,
-                CASE WHEN p.id IS NOT NULL THEN 1 ELSE 0 END as project_exists,
-                1 as source
+                CASE WHEN p.id IS NOT NULL OR te.project_id IS NOT NULL THEN 1 ELSE 0 END as project_exists
             FROM timesheet_entries te
             LEFT JOIN users u ON te.user_id = u.id
-            LEFT JOIN projects p ON p.id = te.project_id
-            LEFT JOIN assignments a ON a.user_id = te.user_id AND a.project_id = te.project_id
-            LEFT JOIN effort_estimates ee ON ee.project_id = te.project_id AND ee.role = a.role
-            ${whereClause}
-            GROUP BY te.user_id, u.emp_id, u.name, p.id, p.project_code, p.project_name, 
-                     p.client_name, ee.effort_days, ee.effort_hrs, ee.total_hrs, 
-                     te.original_project_code, te.original_project_name, te.original_client_name
-            HAVING te.user_id IS NOT NULL
-        `, params);
+            LEFT JOIN projects p ON p.project_code = te.original_project_code
+            WHERE 1=1 ${timesheetWhereClause}
+            GROUP BY te.user_id, u.emp_id, u.name, te.project_id, p.id, p.project_code, p.project_name, 
+                     p.client_name, te.original_project_code, te.original_project_name, te.original_client_name
+        `, timesheetParams);
         
-        // ─── QUERY 2: Get system projects without timesheets ──────────
-        let systemEmployees = [];
-        if (!employeeName && !month && !year) {
-            let systemWhere = [];
-            let systemParams = [];
-            
-            if (clientName) {
-                systemWhere.push('p.client_name LIKE ?');
-                systemParams.push(`%${clientName}%`);
-            }
-            if (projectCode) {
-                systemWhere.push('p.project_code LIKE ?');
-                systemParams.push(`%${projectCode}%`);
-            }
-            if (projectName) {
-                systemWhere.push('p.project_name LIKE ?');
-                systemParams.push(`%${projectName}%`);
-            }
-            if (department) {
-                systemWhere.push('p.sub_category LIKE ?');
-                systemParams.push(`%${department}%`);
-            }
-            if (reportingManager) {
-                systemWhere.push('p.project_manager LIKE ?');
-                systemParams.push(`%${reportingManager}%`);
-            }
-            
-            const systemWhereClause = systemWhere.length > 0 
-                ? `AND ${systemWhere.join(' AND ')}` 
-                : '';
-            
-            systemEmployees = await query(`
-                SELECT 
-                    a.user_id,
-                    u.emp_id as employee_code,
-                    u.name as employee_name,
-                    p.id as project_id,
-                    p.project_code,
-                    p.project_name,
-                    p.client_name,
-                    COALESCE(SUM(a.units_assigned), 0) as assigned_units,
-                    COALESCE(SUM(a.estimated_days), 0) as assigned_days,
-                    COALESCE(SUM(a.estimated_hours), 0) as assigned_hours,
-                    0 as actual_hours,
-                    COALESCE(ee.effort_days, 0) as role_effort_days,
-                    COALESCE(ee.effort_hrs, 0) as role_effort_hours,
-                    COALESCE(ee.total_hrs, 0) as role_total_hrs,
-                    a.role as roles,
-                    1 as project_exists,
-                    2 as source
-                FROM assignments a
-                LEFT JOIN users u ON a.user_id = u.id
-                LEFT JOIN projects p ON a.project_id = p.id
-                LEFT JOIN effort_estimates ee ON ee.project_id = a.project_id AND ee.role = a.role
-                WHERE 1=1
-                ${systemWhereClause}
-                AND NOT EXISTS (SELECT 1 FROM timesheet_entries te WHERE te.project_id = a.project_id)
-                GROUP BY a.user_id, u.emp_id, u.name, p.id, p.project_code, p.project_name, 
-                         p.client_name, ee.effort_days, ee.effort_hrs, ee.total_hrs, a.role
-            `, systemParams);
-        }
-        
-        // ─── COMBINE and DEDUPLICATE ──────────────────────────────────
+        // ─── Combine both queries ──────────────────────────────────────
         const employeeMap = new Map();
         
-        timesheetEmployees.forEach(e => {
-            const key = `${e.employee_code}_${e.project_code}`;
-            employeeMap.set(key, e);
+        // Add assignments data first
+        assignmentsData.forEach(a => {
+            const key = `${a.user_id}_${a.project_id}`;
+            employeeMap.set(key, {
+                user_id: a.user_id,
+                employee_code: a.employee_code || '—',
+                employee_name: a.employee_name || 'Unknown',
+                project_id: a.project_id,
+                project_code: a.project_code || '—',
+                project_name: a.project_name || '—',
+                client_name: a.client_name || '—',
+                assigned_units: parseFloat(a.assigned_units || 0),
+                assigned_days: parseFloat(a.assigned_days || 0),
+                assigned_hours: parseFloat(a.assigned_hours || 0),
+                roles: a.roles || 'Not Assigned',
+                actual_hours: 0,
+                project_exists: true
+            });
         });
         
-        systemEmployees.forEach(e => {
-            const key = `${e.employee_code}_${e.project_code}`;
-            if (!employeeMap.has(key)) {
-                employeeMap.set(key, e);
+        // Add timesheet data (merge with assignments or create new entry)
+        timesheetData.forEach(t => {
+            const key = `${t.user_id}_${t.project_id || t.project_code}`;
+            
+            if (employeeMap.has(key)) {
+                // Update existing assignment with actual hours
+                const existing = employeeMap.get(key);
+                existing.actual_hours = parseFloat(t.actual_hours || 0);
+                existing.project_id = t.project_id || existing.project_id;
+                existing.project_code = t.project_code || existing.project_code;
+                existing.project_name = t.project_name || existing.project_name;
+                existing.client_name = t.client_name || existing.client_name;
+                existing.project_exists = t.project_exists === 1;
+                employeeMap.set(key, existing);
+            } else {
+                // Create new entry for timesheet-only employee
+                employeeMap.set(key, {
+                    user_id: t.user_id,
+                    employee_code: t.employee_code || '—',
+                    employee_name: t.employee_name || 'Unknown',
+                    project_id: t.project_id,
+                    project_code: t.project_code || '—',
+                    project_name: t.project_name || '—',
+                    client_name: t.client_name || '—',
+                    assigned_units: 0,
+                    assigned_days: 0,
+                    assigned_hours: 0,
+                    roles: 'Not Assigned',
+                    actual_hours: parseFloat(t.actual_hours || 0),
+                    project_exists: t.project_exists === 1
+                });
             }
         });
         
@@ -594,17 +717,13 @@ const getEmployeeLevelRecon = async (req, res, next) => {
         }
         
         const result = filteredEmployees.map(e => {
-            const assignedUnits = parseFloat(e.assigned_units || 0);
-            const assignedDays = parseFloat(e.assigned_days || 0);
-            const assignedHours = parseFloat(e.assigned_hours || 0);
+            const assignedUnits = e.assigned_units;
+            const assignedDays = e.assigned_days;
+            const assignedHours = e.assigned_hours;
+            const actual = e.actual_hours || 0;
             
-            const roleEffortDays = parseFloat(e.role_effort_days || 0);
-            const roleEffortHours = parseFloat(e.role_effort_hours || 0);
-            
-            const actual = parseFloat(e.actual_hours || 0);
-            
-            const estimatedHours = assignedHours > 0 ? assignedHours : roleEffortHours;
-            const estimatedDays = assignedDays > 0 ? assignedDays : roleEffortDays;
+            const estimatedHours = assignedHours > 0 ? assignedHours : 0;
+            const estimatedDays = assignedDays > 0 ? assignedDays : 0;
             
             const variance = estimatedHours - actual;
             const variancePct = estimatedHours > 0 ? (variance / estimatedHours) * 100 : 0;
@@ -621,32 +740,38 @@ const getEmployeeLevelRecon = async (req, res, next) => {
                 utilizationDisplay = 'N/A';
             }
             
-            let status = 'On Track';
-            if (estimatedHours > 0) {
-                if (variancePct < -20) status = 'Over Utilized';
-                else if (variancePct > 20) status = 'Under Utilized';
-            } else if (!e.project_exists) {
-                status = 'Project Not Found';
-            } else if (estimatedHours === 0 && actual === 0) {
-                status = 'No Activity';
-            } else if (estimatedHours === 0 && actual > 0) {
-                status = 'No Estimate';
-            }
+            // ─── Corrected employee status logic ──────────────────────────
+let status = 'On Track';
+if (estimatedHours > 0) {
+    if (variancePct < 0) {
+        status = 'Over Utilized';     // ✅ Actual > Estimated
+    } else if (variancePct > 20) {
+        status = 'Under Utilized';
+    } else if (variancePct > 0) {
+        status = 'Under Utilized';
+    }
+} else if (!e.project_exists) {
+    status = 'Project Not Found';
+} else if (estimatedHours === 0 && actual === 0) {
+    status = 'No Activity';
+} else if (estimatedHours === 0 && actual > 0) {
+    status = 'No Estimate';
+}
             
             let roleDisplay = 'Not Assigned';
-            if (e.roles) {
+            if (e.roles && e.roles !== 'Not Assigned') {
                 const roleList = e.roles.split(',');
                 roleDisplay = roleList.length > 0 ? roleList[0] : 'Not Assigned';
             }
             
             return {
-                employee_code: e.employee_code || '—',
-                employee_name: e.employee_name || 'Unknown',
-                reporting_manager: e.reporting_manager || '—',
+                employee_code: e.employee_code,
+                employee_name: e.employee_name,
+                reporting_manager: '—',
                 project_id: e.project_id,
-                project_code: e.project_code || '—',
-                project_name: e.project_name || '—',
-                client_name: e.client_name || '—',
+                project_code: e.project_code,
+                project_name: e.project_name,
+                client_name: e.client_name,
                 assigned_units: assignedUnits.toFixed(1),
                 assigned_days: estimatedDays.toFixed(1),
                 assigned_hours: estimatedHours.toFixed(1),
@@ -656,7 +781,7 @@ const getEmployeeLevelRecon = async (req, res, next) => {
                 variance_pct: variancePct.toFixed(1),
                 utilization_pct: utilizationDisplay,
                 role: roleDisplay,
-                project_exists: e.project_exists === 1,
+                project_exists: e.project_exists,
                 status: status
             };
         });
@@ -676,7 +801,7 @@ const getEmployeeLevelRecon = async (req, res, next) => {
 };
 
 // ──────────────────────────────────────────────────────────────
-// 5. GET PROJECT DETAIL (FIXED)
+// 5. GET PROJECT DETAIL (DIRECT APPROACH)
 // ──────────────────────────────────────────────────────────────
 const getProjectDetail = async (req, res, next) => {
     try {
@@ -703,15 +828,16 @@ const getProjectDetail = async (req, res, next) => {
         
         if (projectExists.length > 0) {
             projectIdNum = projectExists[0].id;
+            // Get the actual project code from database
+            const projectInfo = await query(`SELECT project_code FROM projects WHERE id = ?`, [projectIdNum]);
+            if (projectInfo.length > 0) {
+                projectCode = projectInfo[0].project_code;
+            }
         }
         
-        let projectData;
-        let roleData = [];
-        let employeeData = [];
-        
-        // ─── Project Not Found in System ────────────────────────────
+        // ─── If project not found in system ──────────────────────────
         if (!projectIdNum) {
-            // Get data from timesheet_entries by original_project_code
+            // Get project data from timesheet_entries
             projectData = await query(`
                 SELECT 
                     NULL as project_id,
@@ -727,7 +853,7 @@ const getProjectDetail = async (req, res, next) => {
                 GROUP BY te.original_project_code
             `, [projectCode]);
             
-            // Get timesheet employees (who logged hours)
+            // Get employee data
             employeeData = await query(`
                 SELECT 
                     u.emp_id as employee_code,
@@ -752,7 +878,7 @@ const getProjectDetail = async (req, res, next) => {
         } else {
             // ─── Project Found in System ────────────────────────────
             
-            // Get project info
+            // ─── Get project info ─────────────────────────────────────
             projectData = await query(`
                 SELECT 
                     p.id as project_id,
@@ -760,8 +886,16 @@ const getProjectDetail = async (req, res, next) => {
                     p.project_name,
                     p.client_name,
                     COALESCE((SELECT SUM(total_hrs) FROM effort_estimates WHERE project_id = p.id), 0) as estimated_hours,
-                    COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = p.id), 0) as actual_hours,
-                    COALESCE((SELECT COUNT(DISTINCT user_id) FROM timesheet_entries WHERE project_id = p.id), 0) as employee_count,
+                    COALESCE((
+                        SELECT SUM(te.hours) 
+                        FROM timesheet_entries te 
+                        WHERE te.project_id = p.id OR te.original_project_code = p.project_code
+                    ), 0) as actual_hours,
+                    COALESCE((
+                        SELECT COUNT(DISTINCT te.user_id) 
+                        FROM timesheet_entries te 
+                        WHERE te.project_id = p.id OR te.original_project_code = p.project_code
+                    ), 0) as employee_count,
                     1 as in_system
                 FROM projects p
                 WHERE p.id = ?
@@ -775,120 +909,154 @@ const getProjectDetail = async (req, res, next) => {
                     ee.effort_days as estimated_days,
                     ee.buffer_days,
                     ee.buffer_hrs,
-                    COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = ee.project_id), 0) as actual_hours,
-                    COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = ee.project_id), 0) / 8 as actual_days,
-                    (ee.total_hrs - COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = ee.project_id), 0)) as variance_hours,
+                    COALESCE((
+                        SELECT SUM(te.hours) 
+                        FROM timesheet_entries te 
+                        WHERE te.project_id = ee.project_id OR te.original_project_code = p.project_code
+                    ), 0) as actual_hours,
+                    COALESCE((
+                        SELECT SUM(te.hours) 
+                        FROM timesheet_entries te 
+                        WHERE te.project_id = ee.project_id OR te.original_project_code = p.project_code
+                    ), 0) / 8 as actual_days,
+                    (ee.total_hrs - COALESCE((
+                        SELECT SUM(te.hours) 
+                        FROM timesheet_entries te 
+                        WHERE te.project_id = ee.project_id OR te.original_project_code = p.project_code
+                    ), 0)) as variance_hours,
                     CASE 
                         WHEN ee.total_hrs > 0 
-                        THEN ((ee.total_hrs - COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = ee.project_id), 0)) / ee.total_hrs * 100)
+                        THEN ((ee.total_hrs - COALESCE((
+                            SELECT SUM(te.hours) 
+                            FROM timesheet_entries te 
+                            WHERE te.project_id = ee.project_id OR te.original_project_code = p.project_code
+                        ), 0)) / ee.total_hrs * 100)
                         ELSE 0 
                     END as variance_pct
                 FROM effort_estimates ee
+                JOIN projects p ON p.id = ee.project_id
                 WHERE ee.project_id = ?
                 ORDER BY ee.role
             `, [projectIdNum]);
             
-            // ─── Get Assigned Employees (from assignments) ──────────
-            const assignedData = await query(`
+            // ─── ✅ GET ALL EMPLOYEES DIRECTLY FROM TIMESHEET ──────
+            // This is the simplest and most reliable approach
+            const allTimesheetEmployees = await query(`
                 SELECT 
+                    te.user_id,
                     u.emp_id as employee_code,
                     u.name as employee_name,
-                    a.role,
-                    a.units_assigned as assigned_hours,
-                    a.units_assigned / 8 as assigned_days,
-                    COALESCE(te_sum.total_hours, 0) as actual_hours,
-                    COALESCE(te_sum.total_hours, 0) / 8 as actual_days
-                FROM assignments a
-                LEFT JOIN users u ON u.id = a.user_id
-                LEFT JOIN (
-                    SELECT user_id, SUM(hours) as total_hours
-                    FROM timesheet_entries
-                    WHERE project_id = ?
-                    GROUP BY user_id
-                ) te_sum ON te_sum.user_id = a.user_id
-                WHERE a.project_id = ?
-                ORDER BY u.name
-            `, [projectIdNum, projectIdNum]);
-            
-            // ─── Get Timesheet Employees (who logged hours) ──────────
-            const timesheetData = await query(`
-                SELECT 
-                    u.emp_id as employee_code,
-                    u.name as employee_name,
-                    a.role,
-                    COALESCE(a.units_assigned, 0) as assigned_hours,
-                    COALESCE(a.units_assigned, 0) / 8 as assigned_days,
-                    COALESCE(SUM(te.hours), 0) as actual_hours,
-                    COALESCE(SUM(te.hours), 0) / 8 as actual_days
+                    COALESCE(SUM(te.hours), 0) as actual_hours
                 FROM timesheet_entries te
                 LEFT JOIN users u ON te.user_id = u.id
-                LEFT JOIN assignments a ON a.user_id = te.user_id AND a.project_id = te.project_id
-                WHERE te.project_id = ?
-                GROUP BY u.id, u.emp_id, u.name, a.role, a.units_assigned
-                ORDER BY u.name
+                WHERE te.project_id = ? OR te.original_project_code = ?
+                GROUP BY te.user_id, u.emp_id, u.name
+                ORDER BY actual_hours DESC
+            `, [projectIdNum, projectCode]);
+            
+            // ─── GET ALL ASSIGNMENTS FOR THIS PROJECT ──────────────
+            const allAssignments = await query(`
+                SELECT 
+                    a.user_id,
+                    u.emp_id as employee_code,
+                    u.name as employee_name,
+                    a.role,
+                    SUM(a.units_assigned) as assigned_units,
+                    SUM(a.estimated_days) as assigned_days,
+                    SUM(a.estimated_hours) as assigned_hours
+                FROM assignments a
+                LEFT JOIN users u ON a.user_id = u.id
+                WHERE a.project_id = ?
+                GROUP BY a.user_id, u.emp_id, u.name, a.role
             `, [projectIdNum]);
             
-            // ─── Combine Employee Data ──────────────────────────────────
+            // ─── Combine both using Map ──────────────────────────────
             const employeeMap = new Map();
             
-            // Process assigned employees
-            assignedData.forEach(e => {
-                const actualHrs = parseFloat(e.actual_hours || 0);
-                const assignedHrs = parseFloat(e.assigned_hours || 0);
-                
-                employeeMap.set(e.employee_code, {
+            // First, add all timesheet employees
+            allTimesheetEmployees.forEach(e => {
+                const key = e.user_id;
+                employeeMap.set(key, {
                     employee_code: e.employee_code || '—',
                     employee_name: e.employee_name || 'Unknown',
-                    role: e.role || 'Not Assigned',
-                    assigned_hours: assignedHrs,
-                    assigned_days: assignedHrs / 8,
-                    actual_hours: actualHrs,
-                    actual_days: actualHrs / 8,
-                    variance_hours: assignedHrs - actualHrs,
-                    variance_pct: assignedHrs > 0 ? ((assignedHrs - actualHrs) / assignedHrs * 100) : 0,
-                    assignment_status: 'Assigned',
-                    timesheet_status: actualHrs > 0 ? 'Present' : 'Not Present',
-                    utilization_pct: assignedHrs > 0 ? (actualHrs / assignedHrs * 100) : 0
+                    actual_hours: parseFloat(e.actual_hours || 0),
+                    assigned_units: 0,
+                    assigned_days: 0,
+                    assigned_hours: 0,
+                    roles: 'Not Assigned'
                 });
             });
             
-            // Process timesheet employees (add if not already in map)
-            timesheetData.forEach(e => {
-                const actualHrs = parseFloat(e.actual_hours || 0);
-                const assignedHrs = parseFloat(e.assigned_hours || 0);
-                
-                if (employeeMap.has(e.employee_code)) {
-                    // Update existing entry
-                    const existing = employeeMap.get(e.employee_code);
-                    existing.timesheet_status = 'Present';
-                    existing.actual_hours = Math.max(existing.actual_hours, actualHrs);
-                    existing.actual_days = Math.max(existing.actual_days, actualHrs / 8);
-                    existing.variance_hours = existing.assigned_hours - existing.actual_hours;
-                    existing.variance_pct = existing.assigned_hours > 0 
-                        ? ((existing.assigned_hours - existing.actual_hours) / existing.assigned_hours * 100) 
-                        : 0;
-                    existing.utilization_pct = existing.assigned_hours > 0 
-                        ? (existing.actual_hours / existing.assigned_hours * 100) 
-                        : 0;
+            // Then, add/update with assignments data
+            allAssignments.forEach(a => {
+                const key = a.user_id;
+                if (employeeMap.has(key)) {
+                    const existing = employeeMap.get(key);
+                    existing.assigned_units += parseFloat(a.assigned_units || 0);
+                    existing.assigned_days += parseFloat(a.assigned_days || 0);
+                    existing.assigned_hours += parseFloat(a.assigned_hours || 0);
+                    if (a.role) {
+                        existing.roles = existing.roles === 'Not Assigned' ? a.role : existing.roles + ', ' + a.role;
+                    }
+                    employeeMap.set(key, existing);
                 } else {
-                    employeeMap.set(e.employee_code, {
-                        employee_code: e.employee_code || '—',
-                        employee_name: e.employee_name || 'Unknown',
-                        role: e.role || 'Not Assigned',
-                        assigned_hours: assignedHrs,
-                        assigned_days: assignedHrs / 8,
-                        actual_hours: actualHrs,
-                        actual_days: actualHrs / 8,
-                        variance_hours: assignedHrs - actualHrs,
-                        variance_pct: assignedHrs > 0 ? ((assignedHrs - actualHrs) / assignedHrs * 100) : 0,
-                        assignment_status: assignedHrs > 0 ? 'Assigned' : 'Not Assigned',
-                        timesheet_status: 'Present',
-                        utilization_pct: assignedHrs > 0 ? (actualHrs / assignedHrs * 100) : 0
+                    // This employee has assignment but no timesheet
+                    employeeMap.set(key, {
+                        employee_code: a.employee_code || '—',
+                        employee_name: a.employee_name || 'Unknown',
+                        actual_hours: 0,
+                        assigned_units: parseFloat(a.assigned_units || 0),
+                        assigned_days: parseFloat(a.assigned_days || 0),
+                        assigned_hours: parseFloat(a.assigned_hours || 0),
+                        roles: a.role || 'Not Assigned'
                     });
                 }
             });
             
-            employeeData = Array.from(employeeMap.values());
+            // ─── Build employee summary ──────────────────────────────────
+            employeeData = Array.from(employeeMap.values()).map(emp => {
+                const assignedUnits = emp.assigned_units;
+                const assignedDays = emp.assigned_days;
+                const assignedHours = emp.assigned_hours;
+                const actual = emp.actual_hours || 0;
+                
+                const estimatedHours = assignedHours > 0 ? assignedHours : 0;
+                const estimatedDays = assignedDays > 0 ? assignedDays : 0;
+                
+                const variance = estimatedHours - actual;
+                const variancePct = estimatedHours > 0 ? (variance / estimatedHours) * 100 : 0;
+                const utilizationPct = estimatedHours > 0 ? (actual / estimatedHours) * 100 : 0;
+                
+                const assignmentStatus = assignedUnits > 0 ? 'Assigned' : 'Not Assigned';
+                const timesheetStatus = actual > 0 ? 'Present' : 'Not Present';
+                
+                let roleDisplay = 'Not Assigned';
+                if (emp.roles && emp.roles !== 'Not Assigned') {
+                    const roleList = emp.roles.split(', ');
+                    // Remove duplicates
+                    const uniqueRoles = [...new Set(roleList)];
+                    roleDisplay = uniqueRoles.join(', ');
+                }
+                
+                return {
+                    employee_code: emp.employee_code,
+                    employee_name: emp.employee_name,
+                    role: roleDisplay,
+                    assigned_units: assignedUnits,
+                    assigned_days: estimatedDays,
+                    assigned_hours: estimatedHours,
+                    actual_hours: actual,
+                    actual_days: actual / 8,
+                    variance_hours: variance,
+                    variance_pct: variancePct,
+                    assignment_status: assignmentStatus,
+                    timesheet_status: timesheetStatus,
+                    utilization_pct: utilizationPct
+                };
+            });
+            
+            // Sort by employee name
+            employeeData.sort((a, b) => a.employee_name.localeCompare(b.employee_name));
         }
         
         if (!projectData || projectData.length === 0) {
@@ -931,20 +1099,7 @@ const getProjectDetail = async (req, res, next) => {
                     ? (parseFloat(r.actual_hours) / parseFloat(r.estimated_hours) * 100) 
                     : 0
             })),
-            employeeSummary: employeeData.map(e => ({
-                employee_code: e.employee_code || '—',
-                employee_name: e.employee_name || 'Unknown',
-                role: e.role || 'Not Assigned',
-                assigned_hours: parseFloat(e.assigned_hours || 0),
-                assigned_days: parseFloat(e.assigned_days || 0),
-                actual_hours: parseFloat(e.actual_hours || 0),
-                actual_days: parseFloat(e.actual_days || 0),
-                variance_hours: parseFloat(e.variance_hours || 0),
-                variance_pct: parseFloat(e.variance_pct || 0),
-                assignment_status: e.assignment_status,
-                timesheet_status: e.timesheet_status,
-                utilization_pct: parseFloat(e.utilization_pct || 0)
-            }))
+            employeeSummary: employeeData
         });
         
     } catch (err) {
