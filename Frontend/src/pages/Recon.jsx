@@ -78,11 +78,17 @@ const ReconPage = () => {
   const [employeeReconList, setEmployeeReconList] = useState([]);
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
-  const [projectDetail, setProjectDetail] = useState(null);
+  // const [projectDetail, setProjectDetail] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [projectDetail, setProjectDetail] = useState({
+  employeePage: 1,
+  employeePageSize: 5,
+  employeeSummary: [],
+  project: null,
+});
 
   // ─── Filtered Data with Search ─────────────────────────────────
   const filteredProjects = useMemo(() => {
@@ -320,32 +326,35 @@ const ReconPage = () => {
           icon="❌"
           color="#ef4444"
         />
-        <KPICard
+        {/* <KPICard
           label="Total Employees"
           value={dashboardData.total_employees}
           icon="👥"
           color="#8b5cf6"
-        />
+        /> */}
+       <KPICard
+  label="Total Estimated Person Hours"
+  value={`${Number(dashboardData.total_estimated_hours).toLocaleString()} 
+  
+  
+  `}
+  icon="⏱️"
+  color="#3b82f6"
+/>
         <KPICard
-          label="Total Estimated Hours"
-          value={`${Number(dashboardData.total_estimated_hours).toLocaleString()} hrs`}
-          icon="⏱️"
-          color="#3b82f6"
-        />
+  label="Total Actual Person Hours"
+  value={`${Number(dashboardData.total_actual_hours).toLocaleString()}`}
+  icon="✅"
+  color="#10b981"
+/>
         <KPICard
-          label="Total Actual Hours"
-          value={`${Number(dashboardData.total_actual_hours).toLocaleString()} hrs`}
-          icon="✅"
-          color="#10b981"
-        />
-        <KPICard
-          label="Total Variance Hours"
-          value={`${Number(dashboardData.total_variance_hours) > 0 ? "+" : ""}${Number(
-            dashboardData.total_variance_hours
-          ).toLocaleString()} hrs`}
-          icon="📊"
-          color={Number(dashboardData.total_variance_hours) > 0 ? "#ef4444" : "#10b981"}
-        />
+  label="Total Variance Person Hours"
+  value={`${Number(dashboardData.total_variance_hours) > 0 ? "+" : ""}${Number(
+    dashboardData.total_variance_hours
+  ).toLocaleString()} `}
+  icon="📊"
+  color={Number(dashboardData.total_variance_hours) > 0 ? "#ef4444" : "#10b981"}
+/>
         <KPICard
           label="Overutilized Projects"
           value={dashboardData.overutilized_count}
@@ -517,174 +526,229 @@ const ReconPage = () => {
       ) : (
         <>
           {/* ─── Project Tab ─── */}
-          {activeTab === "project" && (
-            <div style={styles.tableCard}>
-              <div style={styles.tableHeader}>
-                <h3 style={styles.sectionTitle}>Project Level Reconciliation</h3>
-                <div style={styles.tableControls}>
-                  <input
-                    type="text"
-                    placeholder="🔍 Search Project..."
-                    value={projectSearch}
-                    onChange={(e) => setProjectSearch(e.target.value)}
-                    style={styles.searchInput}
-                  />
-                  <span style={styles.rowCount}>
-                    {filteredProjects.length} projects found
-                  </span>
-                </div>
-              </div>
-              <div style={styles.tableResponsive}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Project Code</th>
-                      <th style={styles.th}>Project Name</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Estimated Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Estimated Days</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Actual Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Actual Days</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Variance Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Variance %</th>
-                      <th style={styles.th}>Status</th>
-                      <th style={{ ...styles.th, textAlign: "center" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedProjects.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} style={styles.emptyCell}>
-                          No reconciliation records match current filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedProjects.map((item) => (
-                        <tr key={item.project_id || item.project_code} style={styles.tr}>
-                          <td style={styles.td}>
-                            <strong>{item.project_code || "—"}</strong>
-                          </td>
-                          <td style={styles.td}>{item.project_name}</td>
-                          <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
-                            {Number(item.estimated_hours).toLocaleString()}
-                          </td>
-                          <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
-                            {Number(item.estimated_days).toLocaleString()}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.td,
-                              textAlign: "right",
-                              fontWeight: "600",
-                              color: "#4f46e5",
-                            }}
-                          >
-                            {Number(item.actual_hours).toLocaleString()}
-                          </td>
-                          <td style={{ ...styles.td, textAlign: "right", fontWeight: "600", color: "#4f46e5" }}>
-                            {Number(item.actual_days).toLocaleString()}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.td,
-                              textAlign: "right",
-                              fontWeight: "600",
-                              color: Number(item.variance_hours) > 0 ? "#ef4444" : "#10b981",
-                            }}
-                          >
-                            {Number(item.variance_hours) > 0 ? "+" : ""}
-                            {Number(item.variance_hours).toLocaleString()}
-                          </td>
-                          <td
-                            style={{
-                              ...styles.td,
-                              textAlign: "right",
-                              fontWeight: "600",
-                              color: Number(item.variance_pct) > 0 ? "#ef4444" : "#10b981",
-                            }}
-                          >
-                            {Number(item.variance_pct) > 0 ? "+" : ""}
-                            {item.variance_pct}%
-                          </td>
-                          <td style={styles.td}>
-                            <span
-                              style={{
-                                ...styles.statusPill,
-                                ...(STATUS_PILLS[item.status] || STATUS_PILLS["On Track"]),
-                              }}
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-                          <td style={{ ...styles.td, textAlign: "center" }}>
-                            <button
-                              onClick={() => handleViewProjectDetails(item)}
-                              style={styles.actionBtn}
-                            >
-                              👁️ View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              {/* ─── Project Pagination ─── */}
-              {filteredProjects.length > 0 && (
-                <div style={styles.paginationContainer}>
-                  <div style={styles.paginationInfo}>
-                    Showing {(projectPage - 1) * projectPageSize + 1} to{" "}
-                    {Math.min(projectPage * projectPageSize, filteredProjects.length)} of{" "}
-                    {filteredProjects.length} entries
-                  </div>
-                  <div style={styles.paginationControls}>
-                    <select
-                      value={projectPageSize}
-                      onChange={handleProjectPageSizeChange}
-                      style={styles.pageSizeSelect}
-                    >
-                      <option value={5}>5</option>
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                    </select>
-                    <button
-                      onClick={() => handleProjectPageChange(projectPage - 1)}
-                      disabled={projectPage === 1}
+{activeTab === "project" && (
+  <div style={styles.tableCard}>
+    <div style={styles.tableHeader}>
+      <h3 style={styles.sectionTitle}>Project Level Reconciliation</h3>
+      <div style={styles.tableControls}>
+        <input
+          type="text"
+          placeholder="🔍 Search Project..."
+          value={projectSearch}
+          onChange={(e) => setProjectSearch(e.target.value)}
+          style={styles.searchInput}
+        />
+        <span style={styles.rowCount}>
+          {filteredProjects.length} projects found
+        </span>
+      </div>
+    </div>
+    <div style={styles.tableResponsive}>
+      <table style={styles.table}>
+        <thead>
+  <tr>
+    <th style={styles.th}>Project Code</th>
+    <th style={styles.th}>Project Name</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Estimated</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Estimated Days</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Actual</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Actual Days</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Utilized %</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Variance</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Variance %</th>
+    <th style={styles.th}>Status</th>
+    <th style={{ ...styles.th, textAlign: "center" }}>Actions</th>
+  </tr>
+</thead>
+        <tbody>
+          {paginatedProjects.length === 0 ? (
+            <tr>
+              <td colSpan={11} style={styles.emptyCell}>
+                No reconciliation records match current filters.
+              </td>
+            </tr>
+          ) : (
+            paginatedProjects.map((item) => {
+              // Calculate actual hours used percentage
+              const estimatedHours = parseFloat(item.estimated_hours) || 0;
+              const actualHours = parseFloat(item.actual_hours) || 0;
+              let usagePercentage = 0;
+              
+              if (estimatedHours > 0) {
+                usagePercentage = (actualHours / estimatedHours) * 100;
+              }
+              
+              // Determine row background and text color based on percentage
+              let rowBgColor = "transparent";
+              let textColor = "#1f2937"; // Default dark color
+              
+              if (usagePercentage > 100) {
+                rowBgColor = "#fee2e2"; // Light red background
+                textColor = "#dc2626"; // Red text
+              } else if (usagePercentage >= 80 && usagePercentage < 100) {
+                rowBgColor = "#fef3c7"; // Light yellow background
+                textColor = "#d97706"; // Amber/Yellow text
+              } else if (usagePercentage === 100) {
+                rowBgColor = "transparent"; // No background
+                textColor = "#1f2937"; // No change - default color
+              }
+              // Below 80%: no change (transparent background, default color)
+              
+              return (
+                <tr 
+                  key={item.project_id || item.project_code} 
+                  style={{
+                    ...styles.tr,
+                    backgroundColor: rowBgColor,
+                    transition: "background-color 0.2s",
+                  }}
+                >
+                  <td style={styles.td}>
+                    <strong>{item.project_code || "—"}</strong>
+                  </td>
+                  <td style={styles.td}>{item.project_name}</td>
+                  <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
+                    {Number(item.estimated_hours).toLocaleString()}
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
+                    {Number(item.estimated_days).toLocaleString()}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      textAlign: "right",
+                      fontWeight: "600",
+                      color: "#4f46e5",
+                    }}
+                  >
+                    {Number(item.actual_hours).toLocaleString()}
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "right", fontWeight: "600", color: "#4f46e5" }}>
+                    {Number(item.actual_days).toLocaleString()}
+                  </td>
+                  {/* Utilized % with conditional text color */}
+                  <td
+                    style={{
+                      ...styles.td,
+                      textAlign: "right",
+                      fontWeight: "700",
+                      color: textColor,
+                    }}
+                  >
+                    {estimatedHours > 0 ? `${usagePercentage.toFixed(1)}%` : "N/A"}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      textAlign: "right",
+                      fontWeight: "600",
+                      color: Number(item.variance_hours) > 0 ? "#10b981" : "#ef4444",
+                    }}
+                  >
+                    {Number(item.variance_hours) > 0 ? "+" : ""}
+                    {Number(item.variance_hours).toLocaleString()}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.td,
+                      textAlign: "right",
+                      fontWeight: "600",
+                      color: Number(item.variance_pct) > 0 ? "#10b981" : "#ef4444",
+                    }}
+                  >
+                    {Number(item.variance_pct) > 0 ? "+" : ""}
+                    {item.variance_pct}%
+                  </td>
+                  <td style={styles.td}>
+                    <span
                       style={{
-                        ...styles.pageBtn,
-                        opacity: projectPage === 1 ? 0.5 : 1,
-                        cursor: projectPage === 1 ? "not-allowed" : "pointer",
+                        ...styles.statusPill,
+                        ...(STATUS_PILLS[item.status] || STATUS_PILLS["On Track"]),
                       }}
                     >
-                      ◀ Prev
-                    </button>
-                    <span style={styles.pageInfo}>
-                      Page {projectPage} of{" "}
-                      {Math.ceil(filteredProjects.length / projectPageSize) || 1}
+                      {item.status}
                     </span>
+                  </td>
+                  <td style={{ ...styles.td, textAlign: "center" }}>
                     <button
-                      onClick={() => handleProjectPageChange(projectPage + 1)}
-                      disabled={projectPage >= Math.ceil(filteredProjects.length / projectPageSize)}
-                      style={{
-                        ...styles.pageBtn,
-                        opacity:
-                          projectPage >= Math.ceil(filteredProjects.length / projectPageSize)
-                            ? 0.5
-                            : 1,
-                        cursor:
-                          projectPage >= Math.ceil(filteredProjects.length / projectPageSize)
-                            ? "not-allowed"
-                            : "pointer",
-                      }}
+                      onClick={() => handleViewProjectDetails(item)}
+                      style={styles.actionBtn}
                     >
-                      Next ▶
+                      👁️ View Details
                     </button>
-                  </div>
-                </div>
-              )}
-            </div>
+                  </td>
+                </tr>
+              );
+            })
           )}
+        </tbody>
+      </table>
+    </div>
+    {/* ─── Project Pagination ─── */}
+    {filteredProjects.length > 0 && (
+      <div style={styles.paginationContainer}>
+        <div style={styles.paginationInfo}>
+          Showing {(projectPage - 1) * projectPageSize + 1} to{" "}
+          {Math.min(projectPage * projectPageSize, filteredProjects.length)} of{" "}
+          {filteredProjects.length} entries
+        </div>
+        <div style={styles.paginationControls}>
+          <select
+            value={projectPageSize}
+            onChange={handleProjectPageSizeChange}
+            style={styles.pageSizeSelect}
+          >
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+          <button
+            onClick={() => handleProjectPageChange(projectPage - 1)}
+            disabled={projectPage === 1}
+            style={{
+              ...styles.pageBtn,
+              opacity: projectPage === 1 ? 0.5 : 1,
+              cursor: projectPage === 1 ? "not-allowed" : "pointer",
+            }}
+          >
+            ◀ Prev
+          </button>
+          <span style={styles.pageInfo}>
+            Page {projectPage} of{" "}
+            {Math.ceil(filteredProjects.length / projectPageSize) || 1}
+          </span>
+          <button
+            onClick={() => handleProjectPageChange(projectPage + 1)}
+            disabled={projectPage >= Math.ceil(filteredProjects.length / projectPageSize)}
+            style={{
+              ...styles.pageBtn,
+              opacity:
+                projectPage >= Math.ceil(filteredProjects.length / projectPageSize)
+                  ? 0.5
+                  : 1,
+              cursor:
+                projectPage >= Math.ceil(filteredProjects.length / projectPageSize)
+                  ? "not-allowed"
+                  : "pointer",
+            }}
+          >
+            Next ▶
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
 
           {/* ─── Employee Tab ─── */}
           {activeTab === "employee" && (
@@ -707,125 +771,146 @@ const ReconPage = () => {
               <div style={styles.tableResponsive}>
                 <table style={styles.table}>
                   <thead>
-                    <tr>
-                      <th style={styles.th}>Employee Code</th>
-                      <th style={styles.th}>Employee Name</th>
-                      <th style={styles.th}>Reporting Manager</th>
-                      <th style={styles.th}>Project Code</th>
-                      <th style={styles.th}>Project Name</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Assigned Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Actual Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Utilization %</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Variance Hrs</th>
-                      <th style={{ ...styles.th, textAlign: "right" }}>Variance %</th>
-                      <th style={styles.th}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedEmployees.length === 0 ? (
-                      <tr>
-                        <td colSpan={11} style={styles.emptyCell}>
-                          No employee assignments found matching current filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedEmployees.map((item, idx) => {
-                        // Calculate utilization %
-                        const assigned = parseFloat(item.assigned_hours) || 0;
-                        const actual = parseFloat(item.actual_hours) || 0;
-                        let utilizationPct = 0;
-                        let utilizationDisplay = "0%";
-                        
-                        if (assigned > 0) {
-                          utilizationPct = (actual / assigned) * 100;
-                          utilizationDisplay = utilizationPct.toFixed(1) + "%";
-                        } else if (actual > 0 && assigned === 0) {
-                          utilizationDisplay = "N/A";
-                        }
-                        
-                        return (
-                          <tr key={idx} style={styles.tr}>
-                            <td style={styles.td}>
-                              <strong>{item.employee_code || "—"}</strong>
-                            </td>
-                            <td style={styles.td}>{item.employee_name}</td>
-                            <td style={styles.td}>{item.reporting_manager || "—"}</td>
-                            <td style={styles.td}>{item.project_code || "—"}</td>
-                            <td style={styles.td}>{item.project_name}</td>
-                            <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
-                              {Number(item.assigned_hours).toLocaleString()}
-                            </td>
-                            <td
-                              style={{
-                                ...styles.td,
-                                textAlign: "right",
-                                fontWeight: "600",
-                                color: "#4f46e5",
-                              }}
-                            >
-                              {Number(item.actual_hours).toLocaleString()}
-                            </td>
-                            <td
-                              style={{
-                                ...styles.td,
-                                textAlign: "right",
-                                fontWeight: "600",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  color:
-                                    utilizationPct > 100
-                                      ? "#ef4444"
-                                      : utilizationPct > 80
-                                      ? "#10b981"
-                                      : utilizationPct > 50
-                                      ? "#f59e0b"
-                                      : utilizationPct > 0
-                                      ? "#6b7280"
-                                      : "#9ca3af",
-                                }}
-                              >
-                                {utilizationDisplay}
-                              </span>
-                            </td>
-                            <td
-                              style={{
-                                ...styles.td,
-                                textAlign: "right",
-                                fontWeight: "600",
-                                color: Number(item.variance_hours) > 0 ? "#ef4444" : "#10b981",
-                              }}
-                            >
-                              {Number(item.variance_hours) > 0 ? "+" : ""}
-                              {Number(item.variance_hours).toLocaleString()}
-                            </td>
-                            <td
-                              style={{
-                                ...styles.td,
-                                textAlign: "right",
-                                fontWeight: "600",
-                                color: Number(item.variance_pct) > 0 ? "#ef4444" : "#10b981",
-                              }}
-                            >
-                              {Number(item.variance_pct) > 0 ? "+" : ""}
-                              {item.variance_pct}%
-                            </td>
-                            <td style={styles.td}>
-                              <span
-                                style={{
-                                  ...styles.statusPill,
-                                  ...(STATUS_PILLS[item.status] || STATUS_PILLS["On Track"]),
-                                }}
-                              >
-                                {item.status}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
+  <tr>
+    <th style={styles.th}>Employee Code</th>
+    <th style={styles.th}>Employee Name</th>
+    <th style={styles.th}>Reporting Manager</th>
+    <th style={styles.th}>Project Code</th>
+    <th style={styles.th}>Project Name</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Assigned</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Actual</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Utilization %</th>
+    <th style={{ ...styles.th, textAlign: "right" }}>
+      <div>Variance</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.th, textAlign: "right" }}>Variance %</th>
+    <th style={styles.th}>Status</th>
+  </tr>
+</thead>
+                 <tbody>
+  {paginatedEmployees.length === 0 ? (
+    <tr>
+      <td colSpan={11} style={styles.emptyCell}>
+        No employee assignments found matching current filters.
+      </td>
+    </tr>
+  ) : (
+    paginatedEmployees.map((item, idx) => {
+      // Calculate utilization %
+      const assigned = parseFloat(item.assigned_hours) || 0;
+      const actual = parseFloat(item.actual_hours) || 0;
+      let utilizationPct = 0;
+      let utilizationDisplay = "0%";
+      
+      if (assigned > 0) {
+        utilizationPct = (actual / assigned) * 100;
+        utilizationDisplay = utilizationPct.toFixed(1) + "%";
+      } else if (actual > 0 && assigned === 0) {
+        utilizationDisplay = "N/A";
+      }
+      
+      // Determine row background and text color based on utilization percentage
+      let rowBgColor = "transparent";
+      let textColor = "#1f2937"; // Default dark color
+      
+      if (utilizationPct > 100) {
+        rowBgColor = "#fee2e2"; // Light red background
+        textColor = "#dc2626"; // Red text
+      } else if (utilizationPct >= 80 && utilizationPct < 100) {
+        rowBgColor = "#fef3c7"; // Light yellow background
+        textColor = "#d97706"; // Amber/Yellow text
+      } else if (utilizationPct === 100) {
+        rowBgColor = "transparent"; // No background
+        textColor = "#1f2937"; // No change - default color
+      } else if (utilizationPct < 80 && utilizationPct > 0) {
+        rowBgColor = "#d1fae5"; // Light green (optional - for below 80%)
+        textColor = "#059669"; // Green text
+      }
+      // Below 80%: green background and text (optional)
+      
+      return (
+        <tr 
+          key={idx} 
+          style={{
+            ...styles.tr,
+            backgroundColor: rowBgColor,
+            transition: "background-color 0.2s",
+          }}
+        >
+          <td style={styles.td}>
+            <strong>{item.employee_code || "—"}</strong>
+          </td>
+          <td style={styles.td}>{item.employee_name}</td>
+          <td style={styles.td}>{item.reporting_manager || "—"}</td>
+          <td style={styles.td}>{item.project_code || "—"}</td>
+          <td style={styles.td}>{item.project_name}</td>
+          <td style={{ ...styles.td, textAlign: "right", fontWeight: "600" }}>
+            {Number(item.assigned_hours).toLocaleString()}
+          </td>
+          <td
+            style={{
+              ...styles.td,
+              textAlign: "right",
+              fontWeight: "600",
+              color: "#4f46e5",
+            }}
+          >
+            {Number(item.actual_hours).toLocaleString()}
+          </td>
+          <td
+            style={{
+              ...styles.td,
+              textAlign: "right",
+              fontWeight: "700",
+              color: textColor,
+            }}
+          >
+            {utilizationDisplay}
+          </td>
+          <td
+            style={{
+              ...styles.td,
+              textAlign: "right",
+              fontWeight: "600",
+              color: Number(item.variance_hours) > 0 ? "#10b981" : " #ef4444",
+            }}
+          >
+            {Number(item.variance_hours) > 0 ? "+" : ""}
+            {Number(item.variance_hours).toLocaleString()}
+          </td>
+          <td
+            style={{
+              ...styles.td,
+              textAlign: "right",
+              fontWeight: "600",
+              color: Number(item.variance_pct) > 0 ? "#10b981" : "#ef4444",
+            }}
+          >
+            {Number(item.variance_pct) > 0 ? "+" : ""}
+            {item.variance_pct}%
+          </td>
+          <td style={styles.td}>
+            <span
+              style={{
+                ...styles.statusPill,
+                ...(STATUS_PILLS[item.status] || STATUS_PILLS["On Track"]),
+              }}
+            >
+              {item.status}
+            </span>
+          </td>
+        </tr>
+      );
+    })
+  )}
+</tbody>
                 </table>
               </div>
               {/* ─── Employee Pagination ─── */}
@@ -931,191 +1016,314 @@ const ReconPage = () => {
               {projectDetail.project?.project_name || "—"}
             </span>
           </div>
-          <div style={styles.detailField}>
-            <span style={styles.detailLabel}>Estimated Hours</span>
-            <span style={styles.detailValue}>
-              {Number(projectDetail.project?.estimated_hours).toLocaleString()} hrs
-            </span>
-          </div>
-          <div style={styles.detailField}>
-            <span style={styles.detailLabel}>Actual Hours Logged</span>
-            <span style={{ ...styles.detailValue, color: "#4f46e5" }}>
-              {Number(projectDetail.project?.actual_hours).toLocaleString()} hrs
-            </span>
-          </div>
-          <div style={styles.detailField}>
-            <span style={styles.detailLabel}>Remaining Hours</span>
-            <span style={{ ...styles.detailValue, color: "#10b981" }}>
-              {Number(projectDetail.project?.remaining_hours).toLocaleString()} hrs
-            </span>
-          </div>
+         <div style={styles.detailField}>
+  <span style={styles.detailLabel}>Estimated Hours</span>
+  <span style={styles.detailValue}>
+    {Number(projectDetail.project?.estimated_hours).toLocaleString()} Person-Hrs
+  </span>
+</div>
+<div style={styles.detailField}>
+  <span style={styles.detailLabel}>Actual Hours Logged</span>
+  <span style={{ ...styles.detailValue, color: "#4f46e5" }}>
+    {Number(projectDetail.project?.actual_hours).toLocaleString()} Person-Hrs
+  </span>
+</div>
+<div style={styles.detailField}>
+  <span style={styles.detailLabel}>Remaining Hours</span>
+  <span style={{ ...styles.detailValue, color: "#10b981" }}>
+    {Number(projectDetail.project?.remaining_hours).toLocaleString()} Person-Hrs
+  </span>
+</div>
         </div>
       </div>
 
-      {/* Employee-wise Breakdown */}
-      <div style={styles.detailSection}>
-        <h4 style={styles.detailSecTitle}>👥 Employee Allocation & Timesheet</h4>
-        <div style={styles.tableResponsive}>
-          <table style={styles.subTable}>
-            <thead>
-              <tr>
-                <th style={styles.subTh}>Employee Code</th>
-                <th style={styles.subTh}>Employee Name</th>
-                <th style={styles.subTh}>Role</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Assigned Hrs</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Assigned Days</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Actual Hrs</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Actual Days</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Utilization %</th>
-                <th style={styles.subTh}>Assignment Status</th>
-                <th style={styles.subTh}>Timesheet Status</th>
-                <th style={{ ...styles.subTh, textAlign: "right" }}>Variance Hrs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {projectDetail.employeeSummary?.length === 0 ? (
-                <tr>
-                  <td colSpan={11} style={styles.emptyCell}>
-                    No employee allocations or timesheets registered.
+     {/* Employee-wise Breakdown */}
+<div style={styles.detailSection}>
+  <h4 style={styles.detailSecTitle}>👥 Employee Allocation & Timesheet</h4>
+  
+  <div style={styles.tableResponsive}>
+    <table style={styles.subTable}>
+      <thead style={styles.stickyHeader}>
+  <tr>
+    <th style={styles.subTh}>Employee Code</th>
+    <th style={styles.subTh}>Employee Name</th>
+    <th style={styles.subTh}>Role</th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>
+      <div>Assigned</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>Assigned Days</th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>
+      <div>Actual</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>Actual Days</th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>Utilization %</th>
+    <th style={{ ...styles.subTh, textAlign: "right" }}>
+      <div>Variance</div>
+      <div style={styles.subHeader}>(Person-Hrs)</div>
+    </th>
+    <th style={styles.subTh}>Assignment Status</th>
+    <th style={styles.subTh}>Timesheet Status</th>
+  </tr>
+</thead>
+      <tbody>
+        {projectDetail.employeeSummary?.length === 0 ? (
+          <tr>
+            <td colSpan={11} style={styles.emptyCell}>
+              No employee allocations or timesheets registered.
+            </td>
+          </tr>
+        ) : (
+          projectDetail.employeeSummary
+            ?.slice(
+              ((projectDetail.employeePage || 1) - 1) * (projectDetail.employeePageSize || 5),
+              (projectDetail.employeePage || 1) * (projectDetail.employeePageSize || 5)
+            )
+            ?.map((e, idx) => {
+              const assigned = parseFloat(e.assigned_hours) || 0;
+              const actual = parseFloat(e.actual_hours) || 0;
+              let utilizationDisplay = "0%";
+              
+              if (assigned > 0) {
+                const utilPct = (actual / assigned) * 100;
+                // Show actual percentage even if above 100%
+                utilizationDisplay = utilPct.toFixed(1) + "%";
+              } else if (actual > 0 && assigned === 0) {
+                utilizationDisplay = "N/A";
+              }
+              
+              return (
+                <tr 
+                  key={idx} 
+                  style={{
+                    ...styles.subTr,
+                    backgroundColor: (() => {
+                      const assigned = parseFloat(e.assigned_hours) || 0;
+                      const actual = parseFloat(e.actual_hours) || 0;
+                      let utilPct = 0;
+                      if (assigned > 0) {
+                        utilPct = (actual / assigned) * 100;
+                      }
+                      
+                      // Row background color based on utilization
+                      if (utilPct > 100) {
+                        return "#fee2e2"; // Light red
+                      } else if (utilPct >= 80 && utilPct < 100) {
+                        return "#fef3c7"; // Light yellow
+                      } else if (utilPct < 80 && utilPct > 0) {
+                        return "#d1fae5"; // Light green (optional - for below 80%)
+                      }
+                      return "transparent";
+                    })(),
+                    transition: "background-color 0.2s",
+                  }}
+                >
+                  <td style={styles.subTd}>{e.employee_code || "—"}</td>
+                  <td style={styles.subTd}>
+                    <strong>{e.employee_name}</strong>
+                  </td>
+                  <td style={styles.subTd}>
+                    <span
+                      style={{
+                        color: e.role === "Not Assigned" ? "#f59e0b" : "#1f2937",
+                        fontWeight: e.role === "Not Assigned" ? "500" : "normal",
+                      }}
+                    >
+                      {e.role || "Not Assigned"}
+                    </span>
+                  </td>
+                  <td style={{ ...styles.subTd, textAlign: "right" }}>
+                    {Number(e.assigned_hours).toLocaleString()}
+                  </td>
+                  <td style={{ ...styles.subTd, textAlign: "right" }}>
+                    {Number(e.assigned_days).toFixed(1)}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.subTd,
+                      textAlign: "right",
+                      color: "#4f46e5",
+                    }}
+                  >
+                    {Number(e.actual_hours).toLocaleString()}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.subTd,
+                      textAlign: "right",
+                      color: "#4f46e5",
+                    }}
+                  >
+                    {Number(e.actual_days).toFixed(1)}
+                  </td>
+                  <td
+                    style={{
+                      ...styles.subTd,
+                      textAlign: "right",
+                      fontWeight: "600",
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: (() => {
+                          const assigned = parseFloat(e.assigned_hours) || 0;
+                          const actual = parseFloat(e.actual_hours) || 0;
+                          let utilPct = 0;
+                          if (assigned > 0) {
+                            utilPct = (actual / assigned) * 100;
+                          }
+                          
+                          // Text color based on utilization
+                          if (utilPct > 100) {
+                            return "#dc2626"; // Red text
+                          } else if (utilPct >= 80 && utilPct < 100) {
+                            return "#d97706"; // Amber/Yellow text
+                          } else if (utilPct < 80 && utilPct > 0) {
+                            return "#059669"; // Green text
+                          }
+                          return "#6b7280";
+                        })(),
+                      }}
+                    >
+                      {(() => {
+                        const assigned = parseFloat(e.assigned_hours) || 0;
+                        const actual = parseFloat(e.actual_hours) || 0;
+                        let utilizationDisplay = "0%";
+                        
+                        if (assigned > 0) {
+                          const utilPct = (actual / assigned) * 100;
+                          // Show actual percentage even if above 100%
+                          utilizationDisplay = utilPct.toFixed(1) + "%";
+                        } else if (actual > 0 && assigned === 0) {
+                          utilizationDisplay = "N/A";
+                        }
+                        return utilizationDisplay;
+                      })()}
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      ...styles.subTd,
+                      textAlign: "right",
+                      fontWeight: "600",
+                      color: Number(e.variance_hours) > 0 ? "#10b981" : "#ef4444",
+                    }}
+                  >
+                    {Number(e.variance_hours) > 0 ? "+" : ""}
+                    {Number(e.variance_hours).toLocaleString()}
+                  </td>
+                  <td style={styles.subTd}>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        backgroundColor:
+                          e.assignment_status === "Assigned"
+                            ? "#d1fae5"
+                            : "#fef3c7",
+                        color:
+                          e.assignment_status === "Assigned" ? "#065f46" : "#92400e",
+                      }}
+                    >
+                      {e.assignment_status || "Not Assigned"}
+                    </span>
+                  </td>
+                  <td style={styles.subTd}>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        backgroundColor:
+                          e.timesheet_status === "Present" ? "#dbeafe" : "#fee2e2",
+                        color:
+                          e.timesheet_status === "Present" ? "#1e40af" : "#991b1b",
+                      }}
+                    >
+                      {e.timesheet_status || "Not Present"}
+                    </span>
                   </td>
                 </tr>
-              ) : (
-                projectDetail.employeeSummary?.map((e, idx) => {
-                  const assigned = parseFloat(e.assigned_hours) || 0;
-                  const actual = parseFloat(e.actual_hours) || 0;
-                  let utilizationDisplay = "0%";
-                  
-                  if (assigned > 0) {
-                    const utilPct = (actual / assigned) * 100;
-                    // ✅ FIX: Show "+100%" if utilization exceeds 100%
-                    if (utilPct > 100) {
-                      utilizationDisplay = "+100%";
-                    } else {
-                      utilizationDisplay = utilPct.toFixed(1) + "%";
-                    }
-                  } else if (actual > 0 && assigned === 0) {
-                    utilizationDisplay = "N/A";
-                  }
-                  
-                  return (
-                    <tr key={idx} style={styles.subTr}>
-                      <td style={styles.subTd}>{e.employee_code || "—"}</td>
-                      <td style={styles.subTd}>
-                        <strong>{e.employee_name}</strong>
-                      </td>
-                      <td style={styles.subTd}>
-                        <span
-                          style={{
-                            color: e.role === "Not Assigned" ? "#f59e0b" : "#1f2937",
-                            fontWeight: e.role === "Not Assigned" ? "500" : "normal",
-                          }}
-                        >
-                          {e.role || "Not Assigned"}
-                        </span>
-                      </td>
-                      <td style={{ ...styles.subTd, textAlign: "right" }}>
-                        {Number(e.assigned_hours).toLocaleString()}
-                      </td>
-                      <td style={{ ...styles.subTd, textAlign: "right" }}>
-                        {Number(e.assigned_days).toFixed(1)}
-                      </td>
-                      <td
-                        style={{
-                          ...styles.subTd,
-                          textAlign: "right",
-                          color: "#4f46e5",
-                        }}
-                      >
-                        {Number(e.actual_hours).toLocaleString()}
-                      </td>
-                      <td
-                        style={{
-                          ...styles.subTd,
-                          textAlign: "right",
-                          color: "#4f46e5",
-                        }}
-                      >
-                        {Number(e.actual_days).toFixed(1)}
-                      </td>
-                      <td
-                        style={{
-                          ...styles.subTd,
-                          textAlign: "right",
-                          fontWeight: "600",
-                        }}
-                      >
-                        <span
-                          style={{
-                            color:
-                              utilizationDisplay === "N/A"
-                                ? "#6b7280"
-                                : utilizationDisplay === "+100%"
-                                ? "#ef4444"
-                                : parseFloat(utilizationDisplay) > 100
-                                ? "#ef4444"
-                                : parseFloat(utilizationDisplay) > 80
-                                ? "#10b981"
-                                : parseFloat(utilizationDisplay) > 50
-                                ? "#f59e0b"
-                                : "#6b7280",
-                          }}
-                        >
-                          {utilizationDisplay}
-                        </span>
-                      </td>
-                      <td style={styles.subTd}>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            backgroundColor:
-                              e.assignment_status === "Assigned"
-                                ? "#d1fae5"
-                                : "#fef3c7",
-                            color:
-                              e.assignment_status === "Assigned" ? "#065f46" : "#92400e",
-                          }}
-                        >
-                          {e.assignment_status || "Not Assigned"}
-                        </span>
-                      </td>
-                      <td style={styles.subTd}>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            fontSize: "11px",
-                            fontWeight: "600",
-                            backgroundColor:
-                              e.timesheet_status === "Present" ? "#dbeafe" : "#fee2e2",
-                            color:
-                              e.timesheet_status === "Present" ? "#1e40af" : "#991b1b",
-                          }}
-                        >
-                          {e.timesheet_status || "Not Present"}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          ...styles.subTd,
-                          textAlign: "right",
-                          fontWeight: "600",
-                          color: Number(e.variance_hours) > 0 ? "#ef4444" : "#10b981",
-                        }}
-                      >
-                        {Number(e.variance_hours) > 0 ? "+" : ""}
-                        {Number(e.variance_hours).toLocaleString()}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+              );
+            })
+        )}
+      </tbody>
+    </table>
+  </div>
+  
+  {/* Pagination Controls - Moved to bottom */}
+  {projectDetail.employeeSummary?.length > 0 && (
+    <div style={styles.modalPaginationContainer}>
+      <div style={styles.modalPaginationInfo}>
+        Showing {((projectDetail.employeePage || 1) - 1) * (projectDetail.employeePageSize || 5) + 1} to{" "}
+        {Math.min((projectDetail.employeePage || 1) * (projectDetail.employeePageSize || 5), projectDetail.employeeSummary.length)} of{" "}
+        {projectDetail.employeeSummary.length} entries
       </div>
+      <div style={styles.modalPaginationControls}>
+        <select
+          value={projectDetail.employeePageSize || 5}
+          onChange={(e) => {
+            const newSize = parseInt(e.target.value);
+            setProjectDetail(prev => ({
+              ...prev,
+              employeePageSize: newSize,
+              employeePage: 1
+            }));
+          }}
+          style={styles.modalPageSizeSelect}
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+        </select>
+        <button
+          onClick={() => {
+            setProjectDetail(prev => ({
+              ...prev,
+              employeePage: Math.max(1, (prev.employeePage || 1) - 1)
+            }));
+          }}
+          disabled={(projectDetail.employeePage || 1) === 1}
+          style={{
+            ...styles.modalPageBtn,
+            opacity: (projectDetail.employeePage || 1) === 1 ? 0.5 : 1,
+            cursor: (projectDetail.employeePage || 1) === 1 ? "not-allowed" : "pointer",
+          }}
+        >
+          ◀ Prev
+        </button>
+        <span style={styles.modalPageInfo}>
+          Page {projectDetail.employeePage || 1} of{" "}
+          {Math.ceil(projectDetail.employeeSummary.length / (projectDetail.employeePageSize || 5)) || 1}
+        </span>
+        <button
+          onClick={() => {
+            setProjectDetail(prev => ({
+              ...prev,
+              employeePage: Math.min(
+                Math.ceil(prev.employeeSummary.length / (prev.employeePageSize || 5)),
+                (prev.employeePage || 1) + 1
+              )
+            }));
+          }}
+          disabled={(projectDetail.employeePage || 1) >= Math.ceil(projectDetail.employeeSummary.length / (projectDetail.employeePageSize || 5))}
+          style={{
+            ...styles.modalPageBtn,
+            opacity: (projectDetail.employeePage || 1) >= Math.ceil(projectDetail.employeeSummary.length / (projectDetail.employeePageSize || 5)) ? 0.5 : 1,
+            cursor: (projectDetail.employeePage || 1) >= Math.ceil(projectDetail.employeeSummary.length / (projectDetail.employeePageSize || 5)) ? "not-allowed" : "pointer",
+          }}
+        >
+          Next ▶
+        </button>
+      </div>
+    </div>
+  )}
+</div>
     </div>
   )}
   <div style={styles.modalFooter}>
@@ -1609,6 +1817,75 @@ const styles = {
     transition: "background 0.15s",
     ":hover": { background: "#374151" },
   },
+  // Add these styles to your existing styles object
+stickyHeader: {
+  position: "sticky",
+  top: 0,
+  zIndex: 10,
+  backgroundColor: "#ffffff",
+  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
+},
+
+modalPaginationContainer: {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "12px 0",
+  flexWrap: "wrap",
+  gap: "10px",
+  borderTop: "1px solid #f3f4f6",
+  borderBottom: "1px solid #f3f4f6",
+  marginBottom: "12px",
+},
+
+modalPaginationInfo: {
+  fontSize: "13px",
+  color: "#6b7280",
+},
+
+modalPaginationControls: {
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+},
+
+modalPageSizeSelect: {
+  padding: "4px 8px",
+  border: "1px solid #d1d5db",
+  borderRadius: "6px",
+  fontSize: "12px",
+  color: "#1f2937",
+  outline: "none",
+  cursor: "pointer",
+  backgroundColor: "#ffffff",
+},
+
+modalPageBtn: {
+  padding: "4px 12px",
+  border: "1px solid #d1d5db",
+  borderRadius: "6px",
+  background: "#ffffff",
+  fontSize: "12px",
+  fontWeight: "500",
+  color: "#1f2937",
+  cursor: "pointer",
+  transition: "all 0.15s",
+  ":hover:not(:disabled)": {
+    background: "#f9fafb",
+    borderColor: "#4f46e5",
+  },
+},
+
+modalPageInfo: {
+  fontSize: "13px",
+  color: "#6b7280",
+},
+subHeader: {
+  fontSize: "9px",
+  fontWeight: "400",
+  color: "#6b7280",
+  marginTop: "1px",
+},
 };
 
 // ─── Global CSS for spinner animation ──────────────────────────
