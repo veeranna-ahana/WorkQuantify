@@ -13,8 +13,8 @@ import DailyUpdates from './pages/DailyUpdate';
 import AssignmentScreen from './pages/Assignment';
 import MyWork from './pages/MyWork';
 import UtilizationDashboard from './pages/UtilizationDashboard';
-import Approvals from './pages/Approvals'; 
-import DailyUpdatesReport from './pages/DailyUpdate';
+import Approvals from './pages/Approvals';
+import DailyUpdatesReport from './pages/DailyUpdatesReport';
 import ReconPage from './pages/Recon';
 import ReconciliationUpload from './pages/ReconciliationUpload';
 
@@ -28,22 +28,22 @@ function App() {
 
         {/* Protected Routes with MainLayout */}
         <Route path="/" element={<MainLayout />}>
-          <Route path="dashboard"    element={<Dashboard />} />
-          <Route path="projects"     element={<Projects />} />
-          <Route path="users"        element={<Users />} />
-          <Route path="tasks"        element={<Tasks />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="users" element={<Users />} />
+          <Route path="tasks" element={<Tasks />} />
           <Route path="daily-update" element={<DailyUpdates />} />
-          <Route path="assignments"  element={<AssignmentScreen />} />
-          <Route path="my-work"      element={<MyWork />} />
-          <Route path="quantificationnew"  element={<UtilizationDashboard />} />
-          <Route path="dailyreport"  element={<DailyUpdatesReport />} />
-          <Route path="approvals"    element={<Approvals />} />
-           {/* ─── Reconciliation Routes ─── */}
+          <Route path="assignments" element={<AssignmentScreen />} />
+          <Route path="my-work" element={<MyWork />} />
+          <Route path="quantificationnew" element={<UtilizationDashboard />} />
+          <Route path="dailyreport" element={<DailyUpdatesReport />} />
+          <Route path="approvals" element={<Approvals />} />
+          {/* ─── Reconciliation Routes ─── */}
           <Route path="reconciliation/dashboard" element={<ReconPage />} />
           <Route path="reconciliation/upload" element={<ReconciliationUpload />} />
           <Route path="reconciliation" element={<Navigate to="/reconciliation/upload" replace />} />
         </Route>
-        
+
 
         {/* Default redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />
