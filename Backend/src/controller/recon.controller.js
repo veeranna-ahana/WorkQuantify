@@ -74,38 +74,40 @@ const getReconFilters = async (req, res, next) => {
         res.status(500).json({ message: err.message });
     }
 };
-
 // ──────────────────────────────────────────────────────────────
-// 2. GET DASHBOARD SUMMARY
+// 2. GET DASHBOARD SUMMARY (FIXED - SAME LOGIC AS PROJECT LEVEL)
 // ──────────────────────────────────────────────────────────────
 const getReconDashboard = async (req, res, next) => {
     try {
-        // Get ALL unique projects from timesheet_entries
+        // ─── Get ALL unique projects from timesheet_entries ──────────
         const timesheetProjectsQuery = `
-            SELECT DISTINCT 
+            SELECT 
                 te.original_project_code,
-                te.original_project_name,
-                CASE WHEN p.id IS NOT NULL THEN 1 ELSE 0 END as in_system,
-                CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate,
+                MAX(te.original_project_name) as original_project_name,
+                MAX(CASE WHEN p.id IS NOT NULL THEN 1 ELSE 0 END) as in_system,
+                MAX(CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END) as has_estimate,
                 COALESCE(SUM(te.hours), 0) as actual_hours
             FROM timesheet_entries te
             LEFT JOIN projects p ON p.project_code = te.original_project_code
             LEFT JOIN effort_estimates ee ON ee.project_id = p.id
-            GROUP BY te.original_project_code, te.original_project_name, p.id, ee.id
+            GROUP BY te.original_project_code
             HAVING COALESCE(SUM(te.hours), 0) > 0
         `;
         const timesheetProjects = await query(timesheetProjectsQuery, []);
         
-        // Get ALL projects from projects table
+        // ─── Get ALL projects from projects table ──────────────────
         const systemProjectsQuery = `
-            SELECT p.id, p.project_code, p.project_name,
-                   CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate
+            SELECT 
+                p.id, 
+                p.project_code, 
+                p.project_name,
+                CASE WHEN ee.id IS NOT NULL THEN 1 ELSE 0 END as has_estimate
             FROM projects p
             LEFT JOIN effort_estimates ee ON ee.project_id = p.id
         `;
         const systemProjects = await query(systemProjectsQuery, []);
         
-        // Combine: System projects + Timesheet projects not in system
+        // ─── Combine projects ──────────────────────────────────────
         const systemProjectCodes = new Set(systemProjects.map(p => p.project_code));
         const combinedProjects = new Map();
         
@@ -115,7 +117,8 @@ const getReconDashboard = async (req, res, next) => {
                 project_name: p.project_name,
                 in_system: true,
                 has_estimate: p.has_estimate === 1,
-                actual_hours: 0
+                actual_hours: 0,
+                estimated_hours: 0
             });
         });
         
@@ -130,23 +133,56 @@ const getReconDashboard = async (req, res, next) => {
                     project_name: p.original_project_name || p.original_project_code,
                     in_system: false,
                     has_estimate: false,
-                    actual_hours: parseFloat(p.actual_hours || 0)
+                    actual_hours: parseFloat(p.actual_hours || 0),
+                    estimated_hours: 0
                 });
             }
         });
         
-        const allProjects = Array.from(combinedProjects.values());
+        // ─── Get estimated hours for projects ──────────────────────
+        const estimatedData = await query(`
+            SELECT 
+                p.project_code,
+                COALESCE(SUM(ee.total_hrs), 0) as estimated_hours
+            FROM projects p
+            LEFT JOIN effort_estimates ee ON ee.project_id = p.id
+            GROUP BY p.project_code
+        `);
+        
+        const estimatedMap = new Map();
+        estimatedData.forEach(e => {
+            estimatedMap.set(e.project_code, parseFloat(e.estimated_hours || 0));
+        });
+        
+        // ─── Update combined projects with estimated hours ──────────
+        const allProjects = Array.from(combinedProjects.values()).map(p => {
+            const estimated = estimatedMap.get(p.project_code) || 0;
+            return {
+                ...p,
+                estimated_hours: estimated
+            };
+        });
+        
         const totalProjects = allProjects.length;
         
         let projectsWithEstimates = 0;
         let projectsWithoutEstimates = 0;
         let projectsWithTimesheets = 0;
         let projectsWithoutTimesheets = 0;
-        let totalActualHours = 0;
         
+        // ─── ✅ Calculate total actual hours from timesheet_entries directly ──
+        const totalActualResult = await query(`
+            SELECT COALESCE(SUM(hours), 0) as total_hours
+            FROM timesheet_entries
+        `);
+        const totalActualHours = parseFloat(totalActualResult[0]?.total_hours || 0);
+        
+        // ─── Get total estimated hours from effort_estimates ────
+        const estimatedResult = await query(`SELECT COALESCE(SUM(total_hrs), 0) as total FROM effort_estimates`, []);
+        const totalEstimatedFromTable = parseFloat(estimatedResult[0]?.total || 0);
+        
+        // ─── Calculate metrics ──────────────────────────────────────
         allProjects.forEach(p => {
-            totalActualHours += p.actual_hours;
-            
             if (p.in_system) {
                 if (p.has_estimate) {
                     projectsWithEstimates++;
@@ -164,39 +200,40 @@ const getReconDashboard = async (req, res, next) => {
             }
         });
         
-        // Get total estimated hours
-        const estimatedResult = await query(`SELECT COALESCE(SUM(total_hrs), 0) as total FROM effort_estimates`, []);
-        const totalEstimatedHours = parseFloat(estimatedResult[0]?.total || 0);
+        // ─── ✅ Calculate over/under utilized (SAME LOGIC AS PROJECT LEVEL) ──
+        let overutilized = 0;
+        let underutilized = 0;
         
-        // Get total employees
+        const projectWithEstimates = allProjects.filter(p => p.has_estimate && p.estimated_hours > 0);
+        
+        for (const p of projectWithEstimates) {
+            // Get actual hours using both project_id and original_project_code
+            const actualResult = await query(`
+                SELECT COALESCE(SUM(hours), 0) as actual_hours
+                FROM timesheet_entries
+                WHERE project_id = (SELECT id FROM projects WHERE project_code = ?)
+                   OR original_project_code = ?
+            `, [p.project_code, p.project_code]);
+            
+            const actualHrs = parseFloat(actualResult[0]?.actual_hours || 0);
+            const variancePct = ((p.estimated_hours - actualHrs) / p.estimated_hours) * 100;
+            
+            // ✅ SAME LOGIC AS PROJECT LEVEL API
+            // If variancePct < 0 → Over Utilized (Actual > Estimated)
+            // If variancePct > 0 → Under Utilized (Estimated > Actual)
+            if (variancePct < 0) {
+                overutilized++;
+            } else if (variancePct > 0) {
+                underutilized++;
+            }
+        }
+        
+        // ─── Get total employees ──────────────────────────────────
         const employeesResult = await query(
             `SELECT COUNT(DISTINCT user_id) as count FROM timesheet_entries WHERE user_id IS NOT NULL`, 
             []
         );
         const totalEmployees = parseInt(employeesResult[0]?.count || 0);
-        
-        // Get over/under utilized
-        const utilStats = await query(`
-            SELECT 
-                p.id,
-                COALESCE((SELECT SUM(total_hrs) FROM effort_estimates WHERE project_id = p.id), 0) as estimated_hrs,
-                COALESCE((SELECT SUM(hours) FROM timesheet_entries WHERE project_id = p.id), 0) as actual_hrs
-            FROM projects p
-            WHERE EXISTS (SELECT 1 FROM effort_estimates WHERE project_id = p.id)
-        `, []);
-        
-        let overutilized = 0;
-        let underutilized = 0;
-        
-        utilStats.forEach(p => {
-            const estimated = parseFloat(p.estimated_hrs || 0);
-            const actual = parseFloat(p.actual_hrs || 0);
-            if (estimated > 0) {
-                const variancePct = ((estimated - actual) / estimated) * 100;
-                if (variancePct < -20) overutilized++;
-                else if (variancePct > 20) underutilized++;
-            }
-        });
         
         res.status(200).json({
             total_projects: totalProjects,
@@ -205,9 +242,9 @@ const getReconDashboard = async (req, res, next) => {
             projects_with_timesheets: projectsWithTimesheets,
             projects_without_timesheets: projectsWithoutTimesheets,
             total_employees: totalEmployees,
-            total_estimated_hours: totalEstimatedHours,
+            total_estimated_hours: totalEstimatedFromTable,
             total_actual_hours: totalActualHours,
-            total_variance_hours: totalEstimatedHours - totalActualHours,
+            total_variance_hours: totalEstimatedFromTable - totalActualHours,
             overutilized_count: overutilized,
             underutilized_count: underutilized
         });
