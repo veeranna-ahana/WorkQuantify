@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -70,6 +72,18 @@ button:hover {
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Prevent global button styles from leaking into explicitly styled buttons */
+button[style*="border: none"],
+button[style*="border:none"] {
+  padding: unset;
+  font-size: unset;
+}
+button[style*="border: none"]:hover,
+button[style*="border:none"]:hover {
+  border-color: transparent;
+  outline: none;
 }
 
 @media (prefers-color-scheme: light) {

@@ -8,7 +8,10 @@ import Dashboard from './pages/Dashboard';
 import MainLayout from './layout/MainLayout';
 import './App.css';
 import Users from './pages/Users';
-import Projects from './pages/Projects';
+import Projects from './pages/Projects'; // legacy — kept for other routes
+import ProjectsPage from './features/projects/pages/ProjectsPage';
+import ProjectDetailsPage from './features/projects/pages/ProjectDetailsPage';
+import ImportProjectPage from './features/projects/pages/ImportProjectPage';
 import CreateProject from './pages/CreateProject';
 import EditProject from './pages/EditProject';
 import EffortEstimate from './pages/EffortEstimate';
@@ -51,7 +54,9 @@ function App() {
         {/* Protected Routes with MainLayout */}
         <Route path="/" element={<MainLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="projects" element={<Projects />} />
+          <Route path="projects" element={<ProjectsPage />} />
+          <Route path="projects/import" element={<ImportProjectPage />} />
+          <Route path="projects/:id" element={<ProjectDetailsPage />} />
           <Route path="projects/create" element={<CreateProject />} />
           <Route path="projects/edit" element={<EditProject />} />
           <Route path="projects/effort" element={<EffortEstimate />} />

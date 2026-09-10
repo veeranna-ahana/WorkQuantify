@@ -136,104 +136,61 @@ const Header = () => {
   const initials = uName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-50 shadow-sm shrink-0">
-
-      {/* ── Left: Logo ── */}
-      <div className="flex items-center gap-2">
-        <img src={ahana} alt="Ahana" style={{ width: "100px", height: "40px" }} />
-      </div>
-
-      {/* ── Right ── */}
-      <div className="flex items-center gap-3" ref={dropdownRef}>
-
-        {/* Bell */}
-        <div className="relative">
-          {/* <button
-            onClick={handleBellOpen}
-            className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
-            style={{ padding: 0, border: 'none', background: 'transparent' }}
-          >
-            <BellIcon />
-            {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            )}
-          </button> */}
-
-          {/* Bell dropdown */}
-          {/* {bellOpen && (
-            <div className="absolute right-0 top-11 w-80 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-bold text-gray-800">Notifications</span>
-                  {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full">{unreadCount}</span>
-                  )}
-                </div>
-                {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-[11px] text-purple-600 font-semibold hover:text-purple-800">
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              <div className="max-h-80 overflow-y-auto">
-                {loading ? (
-                  <div className="py-8 text-center text-gray-400 text-sm">Loading…</div>
-                ) : notifications.length === 0 ? (
-                  <div className="py-8 text-center text-gray-300 text-sm">No notifications</div>
-                ) : notifications.map(n => (
-                  <div key={n.id}
-                    onClick={() => markRead(n.id)}
-                    className={`flex gap-3 px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors
-                      ${n.is_read ? "opacity-60" : ""}`}>
-                    <div className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                      style={{ background: n.is_read ? "#cbd5e1" : "#6C5CE7" }} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-semibold text-gray-700 truncate">{n.title}</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{n.message}</div>
-                      <div className="text-[10px] text-gray-300 mt-1">{timeAgo(n.created_at)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )} */}
-        </div>
-
-        {/* Divider */}
-        {/* <div className="w-px h-6 bg-gray-200" /> */}
-
-        {/* User chip */}
-        <div className="relative">
+    <header className="box-border flex flex-row justify-end items-center px-6 h-[54px] bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-[4px] sticky top-0 z-30 shrink-0 font-roboto">
+      {/* ── Container ── */}
+      <div className="flex flex-row items-center gap-8 h-7">
+        {/* VerticalBorder */}
+        <div className="box-border flex flex-row items-center pl-5 gap-3 h-7 border-l border-[#e2e8f0] relative" ref={dropdownRef}>
+          {/* Frame 49: User Info Button */}
           <button
-            onClick={() => { setUserOpen(o => !o); setBellOpen(false); }}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+            onClick={() => setUserOpen(o => !o)}
+            className="flex flex-row justify-center items-center p-0 gap-4 h-7 bg-transparent border-none outline-none cursor-pointer"
           >
-            {/* Avatar */}
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0 bg-[#856BFF]"
-              >
-              {initials}
+            {/* Frame 47: Avatar (24x24, bg #856bff, rounded-full) */}
+            <div className="w-6 h-6 rounded-full bg-[#856bff] flex items-center justify-center shrink-0">
+              {/* material-symbols:person-outline */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </div>
-            {/* Name + ID */}
-            <div className="text-left hidden sm:block">
-              <div className="text-[13px] font-semibold text-gray-700 leading-tight">{uName}</div>
-              <div className="text-[10px] text-gray-400 leading-tight">{uEmpId}</div>
+
+            {/* Frame 48: User details (Name & ID) */}
+            <div className="flex flex-col items-start gap-[2px] text-left">
+              {/* User Name — Roboto 500 12px #856bff */}
+              <span className="font-roboto font-medium text-xs leading-[14px] text-[#856bff] whitespace-nowrap">
+                {uName}
+              </span>
+              {/* User ID — Roboto 400 10px #58606b */}
+              <span className="font-roboto font-normal text-[10px] leading-3 text-[#58606b] whitespace-nowrap">
+                {uEmpId || uRole}
+              </span>
             </div>
-            <ChevronDown />
+
+            {/* weui:arrow-outlined (dropdown arrow) */}
+            <svg
+              width="8"
+              height="16"
+              viewBox="0 0 8 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className={`transition-transform duration-200 shrink-0 ${userOpen ? "rotate-180" : ""}`}
+            >
+              <path d="M1 6L4 9L7 6" stroke="rgba(0, 0, 0, 0.5)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
 
-          {/* User dropdown */}
+          {/* User dropdown menu */}
           {userOpen && (
-            <div className="absolute right-0 top-11 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 py-1">
+            <div className="absolute right-0 top-9 w-52 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 py-1">
               <div className="px-4 py-3 border-b border-gray-50">
                 <div className="text-[13px] font-bold text-gray-800">{uName}</div>
                 <div className="text-[11px] text-gray-400">{uEmpId}</div>
-                <div className="text-[10px] text-[856BFF] font-semibold mt-0.5 uppercase tracking-wide">{uRole}</div>
+                <div className="text-[10px] text-[#856bff] font-semibold mt-0.5 uppercase tracking-wide">{uRole}</div>
               </div>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors font-medium"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 transition-colors font-medium border-none bg-transparent cursor-pointer"
               >
                 <PowerIcon />
                 Sign Out

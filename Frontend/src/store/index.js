@@ -8,6 +8,7 @@ import authReducer from "./slices/authSlice";
 import employeeReducer from "./slices/employeeSlice";
 import selectedFMSReducer from './slices/selectedFMSSlice';
 import tasksReducer from './slices/tasksSlice';
+import projectsReducer from './slices/projectsSlice';
 
 const persistConfig = {
   key: 'root',
@@ -18,9 +19,10 @@ const persistConfig = {
 const rootReducer = combineReducers({
   theme: themeReducer,
   auth: authReducer,
-  employees: employeeReducer, // ✅ Ensure this is included
+  employees: employeeReducer,
   selectedFMS: selectedFMSReducer,
   tasks: tasksReducer,
+  projects: projectsReducer, // not persisted — resets on navigation
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

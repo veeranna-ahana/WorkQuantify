@@ -1,7 +1,8 @@
+// src/layout/MainLayout.jsx
+import React, { useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { useEffect, useRef } from "react";
-import Sidebar from "../layout/Sidebar";
-import Header from "../layout/Header";
+import Sidebar from "./Sidebar";
+import Header from "./Header";
 
 const MainLayout = () => {
   const { pathname } = useLocation();
@@ -15,39 +16,19 @@ const MainLayout = () => {
   }, [pathname]);
 
   return (
-    <div style={styles.shell}>
-      {/* ── Header full width ── */}
-      <Header />
+    <div className="flex h-screen overflow-hidden bg-[#F5F7FA]">
+      {/* ── Left: Fixed 260px Sidebar with top logo ── */}
+      <Sidebar />
 
-      {/* ── Below Header: Sidebar + Content ── */}
-      <div style={styles.main}>
-        <Sidebar />
-        <div id="main-content-scroll" ref={contentRef} style={styles.content}>
+      {/* ── Right: Header + Scrollable Page Content ── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <Header />
+        <div id="main-content-scroll" ref={contentRef} className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  shell: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-    overflow: "hidden",
-    background: "#f4f6f8",
-  },
-  main: {
-    flex: 1,
-    display: "flex",
-    overflow: "hidden",
-  },
-  content: {
-    flex: 1,
-    overflowY: "auto",
-    padding: "0",
-  },
 };
 
 export default MainLayout;
